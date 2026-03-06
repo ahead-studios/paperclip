@@ -91,4 +91,4 @@ aws secretsmanager put-secret-value \
   --secret-string "sk-ant-oat-..."
 ```
 
-Then restart the ECS task to pick up the new token.
+Then force a new ECS deployment so the task restarts, picks up the fresh token, and `claude auth login` in the entrypoint exchanges it for stored credentials.
