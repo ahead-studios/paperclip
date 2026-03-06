@@ -72,5 +72,7 @@ export function buildClaudeLocalConfig(v: CreateConfigValues): Record<string, un
   ac.dangerouslySkipPermissions = v.dangerouslySkipPermissions;
   if (v.command) ac.command = v.command;
   if (v.extraArgs) ac.extraArgs = parseCommaArgs(v.extraArgs);
+  if (v.mcpConfigPath) ac.mcpConfigPath = v.mcpConfigPath;
+  if (v.disallowedTools && v.disallowedTools.length > 0) ac.disallowedTools = v.disallowedTools;
   return ac;
 }
