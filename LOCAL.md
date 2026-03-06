@@ -20,7 +20,9 @@ docker build -t paperclip .
 docker run \
   -e ANTHROPIC_SETUP_TOKEN="your-setup-token" \
   -e CODEX_CREDENTIALS="$(cat ~/.codex/credentials.json)" \
-  -e GITHUB_TOKEN="ghp_..." \
+  -e GITHUB_APP_ID="123456" \
+  -e GITHUB_APP_INSTALLATION_ID="78901234" \
+  -e GITHUB_APP_PRIVATE_KEY="$(base64 -w 0 < /path/to/app.private-key.pem)" \
   -e DATABASE_URL="postgres://..." \
   -e PAPERCLIP_AUTH_SECRET="change-me" \
   -p 3100:3100 \
@@ -35,7 +37,10 @@ docker run \
 |----------|--------|-------------|
 | `ANTHROPIC_SETUP_TOKEN` | Secrets Manager | Long-lived Claude auth token. Obtain by running `claude setup-token` locally. |
 | `CODEX_CREDENTIALS` | Secrets Manager | Codex subscription token JSON. Obtain by running `codex auth login` locally. |
-| `GITHUB_TOKEN` | SSM Parameter Store | GitHub PAT with `repo` scope, used by `gh` CLI for PR creation. |
+| `GITHUB_APP_ID` | SSM Parameter Store | GitHub App ID (numeric). Used to authenticate the `gh` CLI via App PEM. |
+| `GITHUB_APP_INSTALLATION_ID` | SSM Parameter Store | Installation ID for the GitHub App on your org/repo. |
+| `GITHUB_APP_PRIVATE_KEY` | Secrets Manager | Base64-encoded PEM private key for the GitHub App. Encode with `base64 -w 0 < app.private-key.pem`. |
+| `GITHUB_TOKEN` | SSM Parameter Store | **Fallback only.** GitHub PAT with `repo` scope. Used if GitHub App vars are not set. |
 | `DATABASE_URL` | SSM Parameter Store | PostgreSQL connection string (Aurora in production). |
 | `PAPERCLIP_AUTH_SECRET` | Secrets Manager | Random secret used by Better Auth for session signing. Generate with `openssl rand -hex 32`. |
 

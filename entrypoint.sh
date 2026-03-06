@@ -11,10 +11,48 @@ if [[ -n "${CODEX_CREDENTIALS:-}" ]]; then
   echo "[entrypoint] Codex credentials written to /paperclip/.codex/credentials.json"
 fi
 
-# Authenticate gh CLI with the GitHub token
-if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+# Authenticate gh CLI using GitHub App (preferred) or PAT fallback
+if [[ -n "${GITHUB_APP_ID:-}" && -n "${GITHUB_APP_PRIVATE_KEY:-}" && -n "${GITHUB_APP_INSTALLATION_ID:-}" ]]; then
+  echo "[entrypoint] Authenticating gh CLI via GitHub App..."
+
+  # GITHUB_APP_PRIVATE_KEY must be base64-encoded PEM
+  TMPKEY=$(mktemp)
+  chmod 600 "$TMPKEY"
+  echo "$GITHUB_APP_PRIVATE_KEY" | base64 -d > "$TMPKEY"
+
+  # Generate a JWT signed with RS256 for the GitHub App
+  NOW=$(date +%s)
+  IAT=$((NOW - 60))
+  EXP=$((NOW + 600))
+
+  b64url() { base64 -w 0 | tr '+/' '-_' | tr -d '='; }
+
+  HEADER=$(printf '{"alg":"RS256","typ":"JWT"}' | b64url)
+  PAYLOAD=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' "$IAT" "$EXP" "$GITHUB_APP_ID" | b64url)
+  SIG=$(printf '%s.%s' "$HEADER" "$PAYLOAD" | openssl dgst -sha256 -sign "$TMPKEY" -binary | b64url)
+  JWT="${HEADER}.${PAYLOAD}.${SIG}"
+  rm -f "$TMPKEY"
+
+  # Exchange JWT for an installation access token
+  RESP=$(curl -sf -X POST \
+    -H "Authorization: Bearer ${JWT}" \
+    -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    "https://api.github.com/app/installations/${GITHUB_APP_INSTALLATION_ID}/access_tokens")
+
+  GITHUB_INSTALLATION_TOKEN=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).token)" <<< "$RESP")
+
+  if [[ -z "${GITHUB_INSTALLATION_TOKEN:-}" ]]; then
+    echo "[entrypoint] ERROR: Failed to obtain GitHub App installation token" >&2
+    exit 1
+  fi
+
+  echo "$GITHUB_INSTALLATION_TOKEN" | gh auth login --with-token
+  echo "[entrypoint] gh CLI authenticated via GitHub App (installation ${GITHUB_APP_INSTALLATION_ID})"
+
+elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
   echo "$GITHUB_TOKEN" | gh auth login --with-token
-  echo "[entrypoint] gh CLI authenticated"
+  echo "[entrypoint] gh CLI authenticated via personal access token"
 fi
 
 exec node --import ./server/node_modules/tsx/dist/loader.mjs server/dist/index.js
