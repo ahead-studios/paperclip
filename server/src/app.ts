@@ -48,6 +48,13 @@ export async function createApp(
 
   app.use(express.json());
   app.use(httpLogger);
+
+  // Health check must be registered before privateHostnameGuard so ECS can reach
+  // it via the container's IP address (which is never in the hostname allowlist).
+  app.get("/health", (_req, res) => {
+    res.json({ status: "ok" });
+  });
+
   const privateHostnameGateEnabled =
     opts.deploymentMode === "authenticated" && opts.deploymentExposure === "private";
   const privateHostnameAllowSet = resolvePrivateHostnameAllowSet({
