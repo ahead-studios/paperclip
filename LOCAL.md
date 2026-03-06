@@ -18,7 +18,7 @@ The production Dockerfile uses `entrypoint.sh` to inject credentials from enviro
 docker build -t paperclip .
 
 docker run \
-  -e CLAUDE_CREDENTIALS="$(cat ~/.claude/.credentials.json)" \
+  -e ANTHROPIC_SETUP_TOKEN="your-setup-token" \
   -e CODEX_CREDENTIALS="$(cat ~/.codex/credentials.json)" \
   -e GITHUB_TOKEN="ghp_..." \
   -e DATABASE_URL="postgres://..." \
@@ -33,7 +33,7 @@ docker run \
 
 | Variable | Source | Description |
 |----------|--------|-------------|
-| `CLAUDE_CREDENTIALS` | Secrets Manager | Claude subscription token JSON (`~/.claude/.credentials.json`). Obtain by running `claude auth login` locally and copying the file. |
+| `ANTHROPIC_SETUP_TOKEN` | Secrets Manager | Long-lived Claude auth token. Obtain by running `claude setup-token` locally. |
 | `CODEX_CREDENTIALS` | Secrets Manager | Codex subscription token JSON. Obtain by running `codex auth login` locally. |
 | `GITHUB_TOKEN` | SSM Parameter Store | GitHub PAT with `repo` scope, used by `gh` CLI for PR creation. |
 | `DATABASE_URL` | SSM Parameter Store | PostgreSQL connection string (Aurora in production). |

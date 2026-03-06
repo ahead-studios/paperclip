@@ -1,12 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-# Inject Claude subscription credentials from Secrets Manager env var
-if [[ -n "${CLAUDE_CREDENTIALS:-}" ]]; then
-  mkdir -p /paperclip/.claude
-  echo "$CLAUDE_CREDENTIALS" > /paperclip/.claude/.credentials.json
-  echo "[entrypoint] Claude credentials written to /paperclip/.claude/.credentials.json"
-fi
+# ANTHROPIC_SETUP_TOKEN is passed directly as an env var — no file injection needed.
+# The claude CLI picks it up natively.
 
 # Inject Codex/OpenAI subscription credentials
 if [[ -n "${CODEX_CREDENTIALS:-}" ]]; then
