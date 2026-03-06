@@ -46,6 +46,8 @@ export function createBetterAuthInstance(db: Db, config: Config): BetterAuthInst
   const baseUrl = config.authBaseUrlMode === "explicit" ? config.authPublicBaseUrl : undefined;
   const secret = process.env.BETTER_AUTH_SECRET ?? process.env.PAPERCLIP_AGENT_JWT_SECRET ?? "paperclip-dev-secret";
 
+  const entraEnabled = !!(config.entraClientId && config.entraClientSecret);
+
   const authConfig = {
     baseURL: baseUrl,
     secret,
@@ -62,6 +64,15 @@ export function createBetterAuthInstance(db: Db, config: Config): BetterAuthInst
       enabled: true,
       requireEmailVerification: false,
     },
+    ...(entraEnabled && {
+      socialProviders: {
+        microsoft: {
+          clientId: config.entraClientId!,
+          clientSecret: config.entraClientSecret!,
+          tenantId: config.entraTenantId,
+        },
+      },
+    }),
   };
 
   if (!baseUrl) {
@@ -69,6 +80,10 @@ export function createBetterAuthInstance(db: Db, config: Config): BetterAuthInst
   }
 
   return betterAuth(authConfig);
+}
+
+export function isEntraEnabled(config: Config): boolean {
+  return !!(config.entraClientId && config.entraClientSecret);
 }
 
 export function createBetterAuthHandler(auth: BetterAuthInstance): RequestHandler {

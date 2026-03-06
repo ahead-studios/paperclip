@@ -37,6 +37,9 @@ export interface Config {
   allowedHostnames: string[];
   authBaseUrlMode: AuthBaseUrlMode;
   authPublicBaseUrl: string | undefined;
+  entraClientId: string | undefined;
+  entraClientSecret: string | undefined;
+  entraTenantId: string;
   databaseMode: DatabaseMode;
   databaseUrl: string | undefined;
   embeddedPostgresDataDir: string;
@@ -184,6 +187,9 @@ export function loadConfig(): Config {
     allowedHostnames,
     authBaseUrlMode,
     authPublicBaseUrl,
+    entraClientId: process.env.PAPERCLIP_ENTRA_CLIENT_ID || undefined,
+    entraClientSecret: process.env.PAPERCLIP_ENTRA_CLIENT_SECRET || undefined,
+    entraTenantId: process.env.PAPERCLIP_ENTRA_TENANT_ID || "common",
     databaseMode: fileDatabaseMode,
     databaseUrl: process.env.DATABASE_URL ?? fileDbUrl,
     embeddedPostgresDataDir: resolveHomeAwarePath(

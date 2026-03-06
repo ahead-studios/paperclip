@@ -39,6 +39,7 @@ export async function createApp(
     bindHost: string;
     authReady: boolean;
     companyDeletionEnabled: boolean;
+    entraEnabled: boolean;
     betterAuthHandler?: express.RequestHandler;
     resolveSession?: (req: ExpressRequest) => Promise<BetterAuthSessionResult | null>;
   },
@@ -66,6 +67,9 @@ export async function createApp(
       resolveSession: opts.resolveSession,
     }),
   );
+  app.get("/api/auth/providers", (_req, res) => {
+    res.json({ entra: opts.entraEnabled });
+  });
   app.get("/api/auth/get-session", (req, res) => {
     if (req.actor.type !== "board" || !req.actor.userId) {
       res.status(401).json({ error: "Unauthorized" });

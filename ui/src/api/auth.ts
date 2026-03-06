@@ -43,7 +43,15 @@ async function authPost(path: string, body: Record<string, unknown>) {
   return payload;
 }
 
+export type AuthProviders = { entra: boolean };
+
 export const authApi = {
+  getProviders: async (): Promise<AuthProviders> => {
+    const res = await fetch("/api/auth/providers", { credentials: "include" });
+    if (!res.ok) return { entra: false };
+    return res.json().catch(() => ({ entra: false }));
+  },
+
   getSession: async (): Promise<AuthSession | null> => {
     const res = await fetch("/api/auth/get-session", {
       credentials: "include",
@@ -70,5 +78,21 @@ export const authApi = {
 
   signOut: async () => {
     await authPost("/sign-out", {});
+  },
+
+  signInMicrosoft: async (callbackURL: string): Promise<void> => {
+    const res = await fetch("/api/auth/sign-in/social", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "microsoft", callbackURL }),
+    });
+    const payload = await res.json().catch(() => null);
+    const url = (payload as { url?: string } | null)?.url;
+    if (url) {
+      window.location.href = url;
+    } else {
+      throw new Error("Failed to initiate Microsoft sign-in");
+    }
   },
 };

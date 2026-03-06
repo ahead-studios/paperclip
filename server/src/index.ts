@@ -441,6 +441,7 @@ const app = await createApp(db as any, {
   bindHost: config.host,
   authReady,
   companyDeletionEnabled: config.companyDeletionEnabled,
+  entraEnabled: !!(config.entraClientId && config.entraClientSecret),
   betterAuthHandler,
   resolveSession,
 });
