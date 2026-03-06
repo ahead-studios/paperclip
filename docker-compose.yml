@@ -24,9 +24,15 @@ services:
       PORT: "3100"
       SERVE_UI: "true"
       BETTER_AUTH_SECRET: "15c1dd915ba98e6aca4ae189a21c15530d418b39763189e56b99ca0c8928ebed"
+      BETTER_AUTH_URL: "http://localhost:3100"
+      BOOTSTRAP_CEO_BASE_URL: "http://localhost:3100"
+      ANTHROPIC_SETUP_TOKEN: "${ANTHROPIC_SETUP_TOKEN:-}"
+    volumes:
+      - paperclip_data:/paperclip
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
   pgdata:
+  paperclip_data:
