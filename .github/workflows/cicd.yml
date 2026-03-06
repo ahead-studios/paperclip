@@ -1,0 +1,80 @@
+name: CI/CD
+
+on:
+  push:
+    branches: ["master"]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+  pull_request:
+    branches: ["master"]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: eu-west-1
+  ECR_REPOSITORY: ahead-studios/paperclip
+
+jobs:
+  push-image:
+    name: Push image to ECR
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      id-token: write
+      contents: write
+    if: github.ref == 'refs/heads/master'
+    environment: prd
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          audience: sts.amazonaws.com
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::030797369207:role/aheadstudios-prd-paperclip-cicd-role
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@fe725d47d3009d901b44f3df285a6dc9d438e63a
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Tag commit with ECR image tag
+        run: |
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          git tag "image/${SHORT_SHA}"
+          git push origin "image/${SHORT_SHA}"
+
+  open-infra-pr:
+    name: Open infrastructure PR
+    runs-on: ubuntu-latest
+    needs: push-image
+    if: github.ref == 'refs/heads/master'
+    environment: prd
+    steps:
+      - name: Open infrastructure PR
+        uses: ahead-studios/actions/open-infra-pr@v1
+        with:
+          app-name: paperclip
+          infra-tf-path: infra/environments/prd/apps/paperclip/ecs/variables.tf
+          infra-app-id: ${{ vars.INFRA_APP_ID }}
+          infra-app-private-key: ${{ secrets.INFRA_APP_PRIVATE_KEY }}

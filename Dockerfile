@@ -15,14 +15,18 @@ COPY packages/db/package.json packages/db/
 COPY packages/adapter-utils/package.json packages/adapter-utils/
 COPY packages/adapters/claude-local/package.json packages/adapters/claude-local/
 COPY packages/adapters/codex-local/package.json packages/adapters/codex-local/
+COPY packages/adapters/cursor-local/package.json packages/adapters/cursor-local/
+COPY packages/adapters/opencode-local/package.json packages/adapters/opencode-local/
+COPY packages/adapters/openclaw/package.json packages/adapters/openclaw/
 RUN pnpm install --frozen-lockfile
 
 FROM base AS build
 WORKDIR /app
 COPY --from=deps /app /app
 COPY . .
-RUN pnpm --filter @paperclip/ui build
-RUN pnpm --filter @paperclip/server build
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+RUN pnpm --filter @paperclipai/ui build
+RUN pnpm --filter @paperclipai/server build
 
 FROM base AS production
 WORKDIR /app
@@ -43,6 +47,13 @@ ENV NODE_ENV=production \
   PAPERCLIP_CONFIG=/paperclip/instances/default/config.json \
   PAPERCLIP_DEPLOYMENT_MODE=authenticated \
   PAPERCLIP_DEPLOYMENT_EXPOSURE=private
+
+# Create a non-root user — Claude CLI refuses --dangerously-skip-permissions as root
+RUN useradd --uid 1001 --create-home --shell /bin/bash paperclip \
+    && mkdir -p /paperclip \
+    && chown -R paperclip:paperclip /app /paperclip
+
+USER paperclip
 
 VOLUME ["/paperclip"]
 EXPOSE 3100

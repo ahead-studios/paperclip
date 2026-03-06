@@ -55,4 +55,15 @@ elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
   echo "[entrypoint] gh CLI authenticated via personal access token"
 fi
 
+# Bootstrap the first admin invite if requested
+# Set BOOTSTRAP_CEO_BASE_URL to your public URL (e.g. https://app.example.com)
+# The invite URL will be printed to container logs (e.g. CloudWatch).
+# Safe to leave set permanently — skips automatically once an admin exists.
+if [[ -n "${BOOTSTRAP_CEO_BASE_URL:-}" ]]; then
+  echo "[entrypoint] Running bootstrap-ceo (base-url=${BOOTSTRAP_CEO_BASE_URL})"
+  node --import ./cli/node_modules/tsx/dist/loader.mjs cli/src/index.ts auth bootstrap-ceo \
+    --base-url "${BOOTSTRAP_CEO_BASE_URL}" || true
+fi
+
+
 exec node --import ./server/node_modules/tsx/dist/loader.mjs server/dist/index.js
