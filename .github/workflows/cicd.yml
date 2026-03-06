@@ -71,7 +71,6 @@ jobs:
     if: github.ref == 'refs/heads/master'
     environment: prd
     steps:
-      - uses: actions/checkout@v6
       - name: Open infrastructure PR
         uses: ahead-studios/actions/open-infra-pr@v1
         with:
