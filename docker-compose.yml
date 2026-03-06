@@ -23,6 +23,7 @@ services:
       DATABASE_URL: postgres://paperclip:paperclip@db:5432/paperclip
       PORT: "3100"
       SERVE_UI: "true"
+      BETTER_AUTH_SECRET: "15c1dd915ba98e6aca4ae189a21c15530d418b39763189e56b99ca0c8928ebed"
     depends_on:
       db:
         condition: service_healthy
