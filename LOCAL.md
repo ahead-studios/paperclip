@@ -18,7 +18,7 @@ The production Dockerfile uses `entrypoint.sh` to inject credentials from enviro
 docker build -t paperclip .
 
 docker run \
-  -e ANTHROPIC_SETUP_TOKEN="your-setup-token" \
+  -e ANTHROPIC_AUTH_TOKEN="your-setup-token" \
   -e CODEX_CREDENTIALS="$(cat ~/.codex/credentials.json)" \
   -e GITHUB_TOKEN="ghp_..." \
   -e DATABASE_URL="postgres://..." \
@@ -34,7 +34,7 @@ docker run \
 
 | Variable | Source | Description |
 |----------|--------|-------------|
-| `ANTHROPIC_SETUP_TOKEN` | Secrets Manager | Long-lived Claude auth token. Obtain by running `claude setup-token` locally. |
+| `ANTHROPIC_AUTH_TOKEN` | Secrets Manager | Long-lived Claude auth token. Obtain by running `claude setup-token` locally. |
 | `CODEX_CREDENTIALS` | Secrets Manager | Codex subscription token JSON. Obtain by running `codex auth login` locally. |
 | `GITHUB_TOKEN` | SSM Parameter Store | GitHub PAT with `repo` scope, used by `gh` CLI for PR creation. |
 | `DATABASE_URL` | SSM Parameter Store | PostgreSQL connection string (Aurora in production). |
@@ -80,7 +80,7 @@ The `disallowedTools` list prevents agents from merging or force-pushing directl
 
 ## Token expiry
 
-`ANTHROPIC_SETUP_TOKEN` and Codex tokens expire periodically. When an agent run fails with `claude_auth_required`, generate a fresh token on a locally authenticated machine and update Secrets Manager:
+`ANTHROPIC_AUTH_TOKEN` and Codex tokens expire periodically. When an agent run fails with `claude_auth_required`, generate a fresh token on a locally authenticated machine and update Secrets Manager:
 
 ```bash
 # Re-generate the Claude setup token
@@ -91,4 +91,4 @@ aws secretsmanager put-secret-value \
   --secret-string "sk-ant-oat-..."
 ```
 
-Then force a new ECS deployment so the task restarts, picks up the fresh token, and `claude auth login` in the entrypoint exchanges it for stored credentials.
+Then force a new ECS deployment so the task restarts and picks up the fresh token. The CLI uses it directly as a Bearer token on each agent run — no login step needed.
