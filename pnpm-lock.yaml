@@ -263,9 +263,6 @@ importers:
       '@types/multer':
         specifier: ^2.0.0
         version: 2.0.0
-      '@types/node':
-        specifier: '>=20'
-        version: 25.2.3
       '@types/supertest':
         specifier: ^6.0.2
         version: 6.0.3
