@@ -98,7 +98,7 @@ ENV NODE_ENV=production \
   PAPERCLIP_DEPLOYMENT_EXPOSURE=private
 
 # Create a non-root user — Claude CLI refuses --dangerously-skip-permissions as root
-RUN useradd --uid 1001 --home-dir /paperclip --create-home --shell /bin/bash paperclip \
+RUN adduser --uid 1001 --home /paperclip --shell /bin/bash --disabled-password --gecos "" paperclip \
     && chown -R paperclip:paperclip /app /paperclip
 
 USER paperclip
