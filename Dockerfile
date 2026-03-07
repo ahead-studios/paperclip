@@ -1,7 +1,7 @@
 FROM node:20-bookworm-slim AS base
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-    ca-certificates curl git gh \
+    ca-certificates curl git gh passwd \
     # JSON/YAML/text processing
     jq \
     # Fast search
@@ -98,7 +98,7 @@ ENV NODE_ENV=production \
   PAPERCLIP_DEPLOYMENT_EXPOSURE=private
 
 # Create a non-root user — Claude CLI refuses --dangerously-skip-permissions as root
-RUN adduser --uid 1001 --home /paperclip --shell /bin/bash --disabled-password --gecos "" paperclip \
+RUN useradd --uid 1001 --home-dir /paperclip --create-home --shell /bin/bash paperclip \
     && chown -R paperclip:paperclip /app /paperclip
 
 USER paperclip
