@@ -14,6 +14,31 @@ if [[ -n "${CODEX_CREDENTIALS:-}" ]]; then
   echo "[entrypoint] Codex credentials written to /paperclip/.codex/credentials.json"
 fi
 
+# Configure GitHub authentication for both gh CLI and git operations.
+# GITHUB_TOKEN is the env var set via ECS/SSM. gh CLI checks GH_TOKEN first,
+# then GITHUB_TOKEN — exporting GH_TOKEN ensures consistent behaviour.
+# `gh auth setup-git` registers gh as the git credential helper so that
+# `git clone/push` on private repos works without manual credential config.
+if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+  export GH_TOKEN="${GH_TOKEN:-$GITHUB_TOKEN}"
+  gh auth setup-git 2>/dev/null && \
+    echo "[entrypoint] Git credential helper configured via gh" || \
+    echo "[entrypoint] Warning: gh auth setup-git failed — git may not have access to private repos"
+fi
+
+# Write a .bashrc that preserves the full PATH for agent shell sessions.
+# Claude CLI's Bash tool initialises from the user's shell profile, and
+# Debian's /etc/profile resets PATH to a default that drops mise shims.
+# This .bashrc re-exports the container's intended PATH so agents always
+# have access to tools installed in the Dockerfile (yq, logcli, aws, etc.).
+cat > /paperclip/.bashrc <<'BASHRC'
+# Paperclip agent shell initialisation
+export PATH="/paperclip/.local/share/mise/shims:/usr/local/bin:/usr/bin:/bin"
+# Activate mise if available (provides erlang, elixir, ruby, python runtimes)
+if command -v mise &>/dev/null; then
+  eval "$(mise activate bash 2>/dev/null)" || true
+fi
+BASHRC
 
 # Bootstrap the first admin invite if requested
 # Set BOOTSTRAP_CEO_BASE_URL to your public URL (e.g. https://app.example.com)
