@@ -29,22 +29,11 @@ jobs:
   build:
     name: Build image
     runs-on: ubuntu-24.04-arm
-    permissions:
-      id-token: write
-      contents: read
-    environment: prd
+    # No environment or AWS credentials needed — push: false uses only the
+    # GHA cache, so PRs can run this without prd environment access.
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          audience: sts.amazonaws.com
-          aws-region: ${{ env.AWS_REGION }}
-          role-to-assume: arn:aws:iam::030797369207:role/aheadstudios-prd-paperclip-cicd-role
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@fe725d47d3009d901b44f3df285a6dc9d438e63a
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Build image
@@ -53,7 +42,6 @@ jobs:
           context: .
           platforms: linux/arm64
           push: false
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
