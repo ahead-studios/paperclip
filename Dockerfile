@@ -1,7 +1,9 @@
 FROM node:20-bookworm-slim AS base
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-    ca-certificates curl git gh passwd \
+    ca-certificates curl git gh \
+    # passwd provides useradd — not included in bookworm-slim by default
+    passwd \
     # JSON/YAML/text processing
     jq \
     # Fast search
@@ -15,7 +17,11 @@ RUN apt-get update \
     # Build deps for mise-managed runtimes (Erlang/Elixir/etc.)
     build-essential autoconf m4 \
     libssl-dev libncurses-dev \
-  && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/* \
+  # Create non-root user here, in the same layer as passwd, so it is
+  # guaranteed to be available in all downstream stages via inheritance.
+  # Claude CLI refuses --dangerously-skip-permissions when run as root.
+  && useradd --uid 1001 --home-dir /paperclip --create-home --shell /bin/bash paperclip
 RUN corepack enable
 
 FROM base AS deps
@@ -97,9 +103,7 @@ ENV NODE_ENV=production \
   PAPERCLIP_DEPLOYMENT_MODE=authenticated \
   PAPERCLIP_DEPLOYMENT_EXPOSURE=private
 
-# Create a non-root user — Claude CLI refuses --dangerously-skip-permissions as root
-RUN useradd --uid 1001 --home-dir /paperclip --create-home --shell /bin/bash paperclip \
-    && chown -R paperclip:paperclip /app /paperclip
+RUN chown -R paperclip:paperclip /app /paperclip
 
 USER paperclip
 
