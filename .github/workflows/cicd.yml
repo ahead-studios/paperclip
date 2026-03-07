@@ -98,3 +98,19 @@ jobs:
           infra-tf-path: infra/environments/prd/apps/paperclip/ecs/variables.tf
           infra-app-id: ${{ vars.INFRA_APP_ID }}
           infra-app-private-key: ${{ secrets.INFRA_APP_PRIVATE_KEY }}
+
+      - name: Log CI event to Grafana Loki
+        if: always()
+        env:
+          LOKI_PUSH_URL: ${{ vars.GRAFANA_LOKI_URL }}/loki/api/v1/push
+          LOKI_USERNAME: ${{ vars.GRAFANA_LOKI_USERNAME }}
+          LOKI_PASSWORD: ${{ secrets.GRAFANA_API_TOKEN }}
+        run: |
+          STATUS="${{ job.status }}"
+          TIMESTAMP="$(date +%s)000000000"
+          curl -s --fail-with-body \
+            -u "${LOKI_USERNAME}:${LOKI_PASSWORD}" \
+            -H "Content-Type: application/json" \
+            "${LOKI_PUSH_URL}" \
+            -d "{\"streams\":[{\"stream\":{\"job\":\"github-actions\",\"event\":\"ci\",\"service\":\"paperclip\",\"status\":\"${STATUS}\"},\"values\":[[\"${TIMESTAMP}\",\"CI paperclip sha=${{ github.sha }} status=${STATUS}\"]]}]}" \
+            || echo "Warning: Loki push failed (non-blocking)"
