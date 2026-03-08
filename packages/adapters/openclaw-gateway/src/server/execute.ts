@@ -1,7 +1,33 @@
 import type { AdapterExecutionContext, AdapterExecutionResult } from "@paperclipai/adapter-utils";
 import { asNumber, asString, buildPaperclipEnv, parseObject } from "@paperclipai/adapter-utils/server-utils";
 import crypto, { randomUUID } from "node:crypto";
-import WebSocket from "ws";
+import _WebSocket from "ws";
+
+// TypeScript's module resolution for 'ws' in NodeNext ESM mode resolves the
+// import to the module namespace rather than the WebSocket class when source
+// files are compiled from another package's tsconfig (e.g. the server's tsc
+// includes these files via workspace imports). Use a local interface + factory
+// to avoid the type resolution issue without changing runtime behaviour.
+interface WsClient {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  on(event: string, listener: (...args: any[]) => void): void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  once(event: string, listener: (...args: any[]) => void): void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  off(event: string, listener: (...args: any[]) => void): void;
+  readyState: number;
+  send(data: string): void;
+  close(code?: number, reason?: string | Buffer): void;
+}
+// WebSocket.OPEN = 1
+const WS_OPEN = 1;
+function newWsClient(
+  url: string,
+  options: { headers?: Record<string, string>; maxPayload?: number },
+): WsClient {
+  const Ctor = _WebSocket as unknown as new (url: string, options?: object) => WsClient;
+  return new Ctor(url, options);
+}
 
 type SessionKeyStrategy = "fixed" | "issue" | "run";
 
@@ -511,7 +537,7 @@ function isEventFrame(value: unknown): value is GatewayEventFrame {
 }
 
 class GatewayWsClient {
-  private ws: WebSocket | null = null;
+  private ws: WsClient | null = null;
   private pending = new Map<string, PendingRequest>();
   private challengePromise: Promise<string>;
   private resolveChallenge!: (nonce: string) => void;
@@ -528,7 +554,7 @@ class GatewayWsClient {
     buildConnectParams: (nonce: string) => Record<string, unknown>,
     timeoutMs: number,
   ): Promise<Record<string, unknown> | null> {
-    this.ws = new WebSocket(this.opts.url, {
+    this.ws = newWsClient(this.opts.url, {
       headers: this.opts.headers,
       maxPayload: 25 * 1024 * 1024,
     });
@@ -593,7 +619,7 @@ class GatewayWsClient {
     params: unknown,
     opts: GatewayClientRequestOptions,
   ): Promise<T> {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    if (!this.ws || this.ws.readyState !== WS_OPEN) {
       throw new Error("gateway not connected");
     }
 

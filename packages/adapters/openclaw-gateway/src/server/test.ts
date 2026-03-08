@@ -5,7 +5,21 @@ import type {
 } from "@paperclipai/adapter-utils";
 import { asString, parseObject } from "@paperclipai/adapter-utils/server-utils";
 import { randomUUID } from "node:crypto";
-import WebSocket from "ws";
+import _WebSocket from "ws";
+
+// See execute.ts for explanation of this pattern.
+interface WsClient {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  on(event: string, listener: (...args: any[]) => void): void;
+  close(): void;
+}
+function newWsClient(
+  url: string,
+  options: { headers?: Record<string, string>; maxPayload?: number },
+): WsClient {
+  const Ctor = _WebSocket as unknown as new (url: string, options?: object) => WsClient;
+  return new Ctor(url, options);
+}
 
 function summarizeStatus(checks: AdapterEnvironmentCheck[]): AdapterEnvironmentTestResult["status"] {
   if (checks.some((check) => check.level === "error")) return "fail";
@@ -99,7 +113,7 @@ async function probeGateway(input: {
   timeoutMs: number;
 }): Promise<"ok" | "challenge_only" | "failed"> {
   return await new Promise((resolve) => {
-    const ws = new WebSocket(input.url, { headers: input.headers, maxPayload: 2 * 1024 * 1024 });
+    const ws = newWsClient(input.url, { headers: input.headers, maxPayload: 2 * 1024 * 1024 });
     const timeout = setTimeout(() => {
       try {
         ws.close();
