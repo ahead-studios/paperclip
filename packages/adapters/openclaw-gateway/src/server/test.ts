@@ -11,6 +11,7 @@ import _WebSocket from "ws";
 interface WsClient {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   on(event: string, listener: (...args: any[]) => void): void;
+  send(data: string): void;
   close(): void;
 }
 function newWsClient(
