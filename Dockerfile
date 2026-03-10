@@ -36,19 +36,11 @@ COPY packages/adapter-utils/package.json packages/adapter-utils/
 COPY packages/adapters/claude-local/package.json packages/adapters/claude-local/
 COPY packages/adapters/codex-local/package.json packages/adapters/codex-local/
 COPY packages/adapters/cursor-local/package.json packages/adapters/cursor-local/
-<<<<<<< HEAD
-COPY packages/adapters/openclaw/package.json packages/adapters/openclaw/
-COPY packages/adapters/openclaw-gateway/package.json packages/adapters/openclaw-gateway/
-COPY packages/adapters/opencode-local/package.json packages/adapters/opencode-local/
-COPY packages/adapters/pi-local/package.json packages/adapters/pi-local/
-RUN pnpm install --no-frozen-lockfile
-=======
 COPY packages/adapters/openclaw-gateway/package.json packages/adapters/openclaw-gateway/
 COPY packages/adapters/opencode-local/package.json packages/adapters/opencode-local/
 COPY packages/adapters/pi-local/package.json packages/adapters/pi-local/
 
 RUN pnpm install --frozen-lockfile
->>>>>>> upstream/master
 
 FROM base AS build
 WORKDIR /app
@@ -139,9 +131,4 @@ USER paperclip
 VOLUME ["/paperclip"]
 EXPOSE 3100
 
-<<<<<<< HEAD
 ENTRYPOINT ["/app/entrypoint.sh"]
-=======
-USER node
-CMD ["node", "--import", "./server/node_modules/tsx/dist/loader.mjs", "server/dist/index.js"]
->>>>>>> upstream/master
