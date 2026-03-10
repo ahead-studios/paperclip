@@ -3,7 +3,7 @@ name: slack
 description: >
   Post structured Slack notifications from any agent. Use when you need to
   escalate a blocker, announce a milestone, or send an update to a Slack
-  channel. Requires SLACK_BOT_TOKEN and SLACK_CHANNEL_ID to be set in the
+  channel. Requires PAPERCLIP_SLACK_BOT_TOKEN and SLACK_CHANNEL_ID to be set in the
   agent's adapter config.
 ---
 
@@ -17,7 +17,7 @@ Credentials are injected as environment variables. Never hard-code them.
 
 | Variable | Purpose |
 |---|---|
-| `SLACK_BOT_TOKEN` | Slack bot OAuth token (`xoxb-...`) with `chat:write` scope |
+| `PAPERCLIP_SLACK_BOT_TOKEN` | Slack bot OAuth token (`xoxb-...`) with `chat:write` scope |
 | `SLACK_CHANNEL_ID` | Target Slack channel ID (e.g. `C0123ABCDEF`) |
 
 If either variable is missing, the skill must fail fast with a clear error message and non-zero exit code. Do not attempt to post without credentials.
@@ -50,8 +50,8 @@ Use `curl` to call the Slack Web API `chat.postMessage` endpoint with a Block Ki
 set -euo pipefail
 
 # --- Validate required env vars ---
-if [[ -z "${SLACK_BOT_TOKEN:-}" ]]; then
-  echo "ERROR: SLACK_BOT_TOKEN is not set. Add it to the agent adapter config." >&2
+if [[ -z "${PAPERCLIP_SLACK_BOT_TOKEN:-}" ]]; then
+  echo "ERROR: PAPERCLIP_SLACK_BOT_TOKEN is not set. Add it to the agent adapter config." >&2
   exit 1
 fi
 if [[ -z "${SLACK_CHANNEL_ID:-}" ]]; then
@@ -128,7 +128,7 @@ PAYLOAD=$(jq -n \
 
 # --- Post to Slack ---
 RESPONSE=$(curl -s -X POST \
-  -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+  -H "Authorization: Bearer ${PAPERCLIP_SLACK_BOT_TOKEN}" \
   -H "Content-Type: application/json" \
   --data "$PAYLOAD" \
   "https://slack.com/api/chat.postMessage")
@@ -148,7 +148,7 @@ echo "Message posted successfully to channel ${CHANNEL}"
 
 ```bash
 curl -s -X POST \
-  -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+  -H "Authorization: Bearer ${PAPERCLIP_SLACK_BOT_TOKEN}" \
   -H "Content-Type: application/json" \
   -d "$(jq -n --arg channel "$SLACK_CHANNEL_ID" --arg text "🚨 Blocked: ${TITLE} — ${BODY}" '{channel: $channel, text: $text}')" \
   "https://slack.com/api/chat.postMessage" | jq '{ok, error}'
@@ -190,7 +190,7 @@ Use the minimal one-liner for quick pings. Use the full Block Kit script for str
 | Error | Cause | Fix |
 |---|---|---|
 | `channel_not_found` | Channel ID is wrong or bot not in channel | Invite the bot: `/invite @YourBotName` in the channel |
-| `not_authed` | Token missing or invalid | Check `SLACK_BOT_TOKEN` is set and starts with `xoxb-` |
+| `not_authed` | Token missing or invalid | Check `PAPERCLIP_SLACK_BOT_TOKEN` is set and starts with `xoxb-` |
 | `missing_scope` | Bot lacks `chat:write` | Add `chat:write` in the Slack app OAuth settings |
 | `invalid_blocks` | Malformed Block Kit JSON | Run `jq . <payload>` to validate before posting |
 
@@ -203,6 +203,6 @@ Before any agent can use this skill, the Slack bot app must exist:
 1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → From scratch.
 2. Under **OAuth & Permissions**, add the `chat:write` scope.
 3. Install the app to your workspace.
-4. Copy the **Bot User OAuth Token** (`xoxb-...`) — set this as `SLACK_BOT_TOKEN` in agent adapter config.
+4. Copy the **Bot User OAuth Token** (`xoxb-...`) — set this as `PAPERCLIP_SLACK_BOT_TOKEN` in agent adapter config.
 5. In the target channel, run `/invite @YourBotName`.
 6. Copy the channel ID (right-click channel → View channel details → ID at bottom) — set as `SLACK_CHANNEL_ID`.
