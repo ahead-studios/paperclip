@@ -34,17 +34,11 @@ fi
 cat > /paperclip/.bashrc <<'BASHRC'
 # Paperclip agent shell initialisation
 export PATH="/paperclip/.local/share/mise/shims:/usr/local/bin:/usr/bin:/bin"
-export DISPLAY=:99
 # Activate mise if available (provides erlang, elixir, ruby, python runtimes)
 if command -v mise &>/dev/null; then
   eval "$(mise activate bash 2>/dev/null)" || true
 fi
 BASHRC
-
-# Start virtual framebuffer so Chromium can run without a real display.
-# Required by @playwright/mcp — Playwright uses Chromium on this virtual display.
-Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp &
-echo "[entrypoint] Xvfb started on display :99"
 
 # Bootstrap the first admin invite if requested
 # Set BOOTSTRAP_CEO_BASE_URL to your public URL (e.g. https://app.example.com)
