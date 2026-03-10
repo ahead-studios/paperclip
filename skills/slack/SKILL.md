@@ -100,53 +100,26 @@ CONTEXT_PARTS=()
 CONTEXT_LINE=$(IFS=" | "; echo "${CONTEXT_PARTS[*]}")
 
 # --- Build Block Kit payload ---
-# Blocks array: header + body section + optional context + optional action button
-BLOCKS='[
-  {
-    "type": "header",
-    "text": {
-      "type": "plain_text",
-      "text": "'"${STATUS_EMOJI}${TITLE}"'",
-      "emoji": true
-    }
-  },
-  {
-    "type": "section",
-    "text": {
-      "type": "mrkdwn",
-      "text": "'"${BODY}"'"
-    }
-  }'
+# Use jq --arg for all user-supplied fields to prevent JSON injection
+# (direct shell interpolation into JSON breaks on quotes, backslashes, newlines)
+HEADER_TEXT="${STATUS_EMOJI}${TITLE}"
+BLOCKS=$(jq -n \
+  --arg header "$HEADER_TEXT" \
+  --arg body "$BODY" \
+  '[
+    {"type": "header", "text": {"type": "plain_text", "text": $header, "emoji": true}},
+    {"type": "section", "text": {"type": "mrkdwn", "text": $body}}
+  ]')
 
 if [[ -n "${CONTEXT_LINE:-}" ]]; then
-  BLOCKS+='
-  ,{
-    "type": "context",
-    "elements": [
-      {
-        "type": "mrkdwn",
-        "text": "'"${CONTEXT_LINE}"'"
-      }
-    ]
-  }'
+  BLOCKS=$(echo "$BLOCKS" | jq --arg ctx "$CONTEXT_LINE" \
+    '. += [{"type": "context", "elements": [{"type": "mrkdwn", "text": $ctx}]}]')
 fi
 
 if [[ -n "${ISSUE_URL:-}" ]]; then
-  BLOCKS+='
-  ,{
-    "type": "actions",
-    "elements": [
-      {
-        "type": "button",
-        "text": { "type": "plain_text", "text": "View Issue", "emoji": true },
-        "url": "'"${ISSUE_URL}"'",
-        "style": "primary"
-      }
-    ]
-  }'
+  BLOCKS=$(echo "$BLOCKS" | jq --arg url "$ISSUE_URL" \
+    '. += [{"type": "actions", "elements": [{"type": "button", "text": {"type": "plain_text", "text": "View Issue", "emoji": true}, "url": $url, "style": "primary"}]}]')
 fi
-
-BLOCKS+=']'
 
 PAYLOAD=$(jq -n \
   --arg channel "$CHANNEL" \
@@ -177,10 +150,7 @@ echo "Message posted successfully to channel ${CHANNEL}"
 curl -s -X POST \
   -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{
-    "channel": "'"${SLACK_CHANNEL_ID}"'",
-    "text": "🚨 Blocked: '"${TITLE}"' — '"${BODY}"'"
-  }' \
+  -d "$(jq -n --arg channel "$SLACK_CHANNEL_ID" --arg text "🚨 Blocked: ${TITLE} — ${BODY}" '{channel: $channel, text: $text}')" \
   "https://slack.com/api/chat.postMessage" | jq '{ok, error}'
 ```
 
