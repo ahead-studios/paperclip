@@ -162,14 +162,14 @@ Use the `slack` skill to send structured notifications from agent heartbeats.
 - `SLACK_BOT_TOKEN` — Bot OAuth token (`xoxb-...`) with `chat:write` scope
 - `SLACK_CHANNEL_ID` — Target channel ID
 
-**Example call:**
-```bash
-# Post a blocker notification
-bash skills/slack/SKILL.md \  # invoke via Claude skill system
-  --title "AHE-81: RESEND_API_KEY missing in production" \
-  --body "Email notifications will not send until RESEND_API_KEY is added to ECS task definition." \
-  --status blocked \
-  --agent "SRE Engineer" \
+**Example call (via Claude Skill tool):**
+```
+skill: "slack"
+args: >
+  --title "AHE-81: RESEND_API_KEY missing in production"
+  --body "Email notifications will not send until RESEND_API_KEY is added to ECS task definition."
+  --status blocked
+  --agent "SRE Engineer"
   --issue-url "https://app.paperclip.ai/AHE/issues/AHE-81"
 ```
 
