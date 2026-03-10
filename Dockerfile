@@ -65,7 +65,10 @@ RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/cod
 # Agents opt in via: mcpConfigPath: "/app/mcp.json" in their adapter config.
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN npm install --global @playwright/mcp
-RUN npx playwright install --with-deps chromium && \
+# Use @playwright/mcp's own bundled playwright binary — NOT the global `npx playwright` —
+# so that the installed browser revision exactly matches what the MCP package expects.
+# Using the global playwright (different version) would cause a revision mismatch at runtime.
+RUN /usr/local/lib/node_modules/@playwright/mcp/node_modules/.bin/playwright install --with-deps chromium && \
     chmod -R a+rx /ms-playwright
 
 # Install binary tools for agent use
