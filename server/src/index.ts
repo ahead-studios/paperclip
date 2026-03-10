@@ -389,164 +389,9 @@ export async function startServer(): Promise<StartedServer> {
         "Use authenticated mode for non-loopback deployments.",
     );
   }
-<<<<<<< HEAD
-  const derivedTrustedOrigins = deriveAuthTrustedOrigins(config);
-  const envTrustedOrigins = (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter((value) => value.length > 0);
-  const effectiveTrustedOrigins = Array.from(new Set([...derivedTrustedOrigins, ...envTrustedOrigins]));
-  logger.info(
-    {
-      authBaseUrlMode: config.authBaseUrlMode,
-      authPublicBaseUrl: config.authPublicBaseUrl ?? null,
-      trustedOrigins: effectiveTrustedOrigins,
-      trustedOriginsSource: {
-        derived: derivedTrustedOrigins.length,
-        env: envTrustedOrigins.length,
-      },
-    },
-    "Authenticated mode auth origin configuration",
-  );
-  const auth = createBetterAuthInstance(db as any, config, effectiveTrustedOrigins);
-  betterAuthHandler = createBetterAuthHandler(auth);
-  resolveSession = (req) => resolveBetterAuthSession(auth, req);
-  resolveSessionFromHeaders = (headers) => resolveBetterAuthSessionFromHeaders(auth, headers);
-  await initializeBoardClaimChallenge(db as any, { deploymentMode: config.deploymentMode });
-  authReady = true;
-}
 
-const uiMode = config.uiDevMiddleware ? "vite-dev" : config.serveUi ? "static" : "none";
-const storageService = createStorageServiceFromConfig(config);
-const app = await createApp(db as any, {
-  uiMode,
-  storageService,
-  deploymentMode: config.deploymentMode,
-  deploymentExposure: config.deploymentExposure,
-  allowedHostnames: config.allowedHostnames,
-  bindHost: config.host,
-  authReady,
-  companyDeletionEnabled: config.companyDeletionEnabled,
-  entraEnabled: !!(config.entraClientId && config.entraClientSecret),
-  betterAuthHandler,
-  resolveSession,
-});
-const server = createServer(app as unknown as Parameters<typeof createServer>[0]);
-const listenPort = await detectPort(config.port);
-
-if (listenPort !== config.port) {
-  logger.warn(`Requested port is busy; using next free port (requestedPort=${config.port}, selectedPort=${listenPort})`);
-}
-
-const runtimeListenHost = config.host;
-const runtimeApiHost =
-  runtimeListenHost === "0.0.0.0" || runtimeListenHost === "::"
-    ? "localhost"
-    : runtimeListenHost;
-process.env.PAPERCLIP_LISTEN_HOST = runtimeListenHost;
-process.env.PAPERCLIP_LISTEN_PORT = String(listenPort);
-process.env.PAPERCLIP_API_URL = `http://${runtimeApiHost}:${listenPort}`;
-
-setupLiveEventsWebSocketServer(server, db as any, {
-  deploymentMode: config.deploymentMode,
-  resolveSessionFromHeaders,
-});
-
-if (config.heartbeatSchedulerEnabled) {
-  const heartbeat = heartbeatService(db as any);
-
-  // Reap orphaned runs at startup (no threshold -- runningProcesses is empty)
-  void heartbeat.reapOrphanedRuns().catch((err) => {
-    logger.error({ err }, "startup reap of orphaned heartbeat runs failed");
-  });
-
-  setInterval(() => {
-    void heartbeat
-      .tickTimers(new Date())
-      .then((result) => {
-        if (result.enqueued > 0) {
-          logger.info({ ...result }, "heartbeat timer tick enqueued runs");
-        }
-      })
-      .catch((err) => {
-        logger.error({ err }, "heartbeat timer tick failed");
-      });
-
-    // Periodically reap orphaned runs (5-min staleness threshold)
-    void heartbeat
-      .reapOrphanedRuns({ staleThresholdMs: 5 * 60 * 1000 })
-      .catch((err) => {
-        logger.error({ err }, "periodic reap of orphaned heartbeat runs failed");
-      });
-  }, config.heartbeatSchedulerIntervalMs);
-}
-
-if (config.databaseBackupEnabled) {
-  const backupIntervalMs = config.databaseBackupIntervalMinutes * 60 * 1000;
-  let backupInFlight = false;
-
-  const runScheduledBackup = async () => {
-    if (backupInFlight) {
-      logger.warn("Skipping scheduled database backup because a previous backup is still running");
-      return;
-    }
-
-    backupInFlight = true;
-    try {
-      const result = await runDatabaseBackup({
-        connectionString: activeDatabaseConnectionString,
-        backupDir: config.databaseBackupDir,
-        retentionDays: config.databaseBackupRetentionDays,
-        filenamePrefix: "paperclip",
-      });
-      logger.info(
-        {
-          backupFile: result.backupFile,
-          sizeBytes: result.sizeBytes,
-          prunedCount: result.prunedCount,
-          backupDir: config.databaseBackupDir,
-          retentionDays: config.databaseBackupRetentionDays,
-        },
-        `Automatic database backup complete: ${formatDatabaseBackupResult(result)}`,
-      );
-    } catch (err) {
-      logger.error({ err, backupDir: config.databaseBackupDir }, "Automatic database backup failed");
-    } finally {
-      backupInFlight = false;
-    }
-  };
-
-  logger.info(
-    {
-      intervalMinutes: config.databaseBackupIntervalMinutes,
-      retentionDays: config.databaseBackupRetentionDays,
-      backupDir: config.databaseBackupDir,
-    },
-    "Automatic database backups enabled",
-  );
-  setInterval(() => {
-    void runScheduledBackup();
-  }, backupIntervalMs);
-}
-
-server.listen(listenPort, config.host, () => {
-  logger.info(`Server listening on ${config.host}:${listenPort}`);
-  if (process.env.PAPERCLIP_OPEN_ON_LISTEN === "true") {
-    const openHost = config.host === "0.0.0.0" || config.host === "::" ? "127.0.0.1" : config.host;
-    const url = `http://${openHost}:${listenPort}`;
-    void import("open")
-      .then((mod) => mod.default(url))
-      .then(() => {
-        logger.info(`Opened browser at ${url}`);
-      })
-      .catch((err) => {
-        logger.warn({ err, url }, "Failed to open browser on startup");
-      });
-=======
-  
   if (config.deploymentMode === "local_trusted" && config.deploymentExposure !== "private") {
     throw new Error("local_trusted mode only supports private exposure");
->>>>>>> upstream/master
   }
   
   if (config.deploymentMode === "authenticated") {
@@ -626,6 +471,7 @@ server.listen(listenPort, config.host, () => {
     bindHost: config.host,
     authReady,
     companyDeletionEnabled: config.companyDeletionEnabled,
+    entraEnabled: !!(config.entraClientId && config.entraClientSecret),
     betterAuthHandler,
     resolveSession,
   });

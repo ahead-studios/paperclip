@@ -70,12 +70,9 @@ export function createBetterAuthInstance(db: Db, config: Config, trustedOrigins?
   const secret = process.env.BETTER_AUTH_SECRET ?? process.env.PAPERCLIP_AGENT_JWT_SECRET ?? "paperclip-dev-secret";
   const effectiveTrustedOrigins = trustedOrigins ?? deriveAuthTrustedOrigins(config);
 
-<<<<<<< HEAD
   const entraEnabled = !!(config.entraClientId && config.entraClientSecret);
-=======
   const publicUrl = process.env.PAPERCLIP_PUBLIC_URL ?? baseUrl;
   const isHttpOnly = publicUrl ? publicUrl.startsWith("http://") : false;
->>>>>>> upstream/master
 
   const authConfig = {
     baseURL: baseUrl,
@@ -95,7 +92,6 @@ export function createBetterAuthInstance(db: Db, config: Config, trustedOrigins?
       requireEmailVerification: false,
       disableSignUp: config.authDisableSignUp,
     },
-<<<<<<< HEAD
     ...(entraEnabled && {
       socialProviders: {
         microsoft: {
@@ -105,9 +101,7 @@ export function createBetterAuthInstance(db: Db, config: Config, trustedOrigins?
         },
       },
     }),
-=======
     ...(isHttpOnly ? { advanced: { useSecureCookies: false } } : {}),
->>>>>>> upstream/master
   };
 
   if (!baseUrl) {
