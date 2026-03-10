@@ -132,7 +132,50 @@ When adding endpoints:
 - Use company selection context for company-scoped pages
 - Surface failures clearly; do not silently ignore API errors
 
-## 10. Definition of Done
+## 10. Available Skills for Agents
+
+Skills are reusable instruction files loaded into agents. They live in `skills/<name>/SKILL.md`.
+
+| Skill | Purpose |
+|---|---|
+| `paperclip` | Heartbeat procedure, task checkout, API coordination |
+| `slack` | Post Block Kit notifications to a Slack channel |
+| `awscli` | Inspect ECS services, CloudWatch logs, SSM/Secrets Manager |
+| `grafana-cloud` | Query Loki logs and Mimir metrics |
+| `mise` | Install and manage language runtimes (Node, Elixir, Python, etc.) |
+| `para-memory-files` | File-based persistent memory across sessions |
+| `release` | Coordinate a full Paperclip release |
+| `release-changelog` | Generate user-facing changelogs from git history |
+| `create-agent-adapter` | Build new adapter packages for new AI coding tools |
+| `paperclip-create-agent` | Hire new agents with governance-aware workflow |
+
+### Slack skill — quick reference
+
+Use the `slack` skill to send structured notifications from agent heartbeats.
+
+**When to use:**
+- Issue transitions to `blocked` and requires human action
+- Milestone completions on high-priority tickets
+- Credentials or infrastructure changes are needed (escalation)
+
+**Required env vars (set in agent adapter config):**
+- `SLACK_BOT_TOKEN` — Bot OAuth token (`xoxb-...`) with `chat:write` scope
+- `SLACK_CHANNEL_ID` — Target channel ID
+
+**Example call:**
+```bash
+# Post a blocker notification
+bash skills/slack/SKILL.md \  # invoke via Claude skill system
+  --title "AHE-81: RESEND_API_KEY missing in production" \
+  --body "Email notifications will not send until RESEND_API_KEY is added to ECS task definition." \
+  --status blocked \
+  --agent "SRE Engineer" \
+  --issue-url "https://app.paperclip.ai/AHE/issues/AHE-81"
+```
+
+Full documentation: `skills/slack/SKILL.md`
+
+## 11. Definition of Done
 
 A change is done when all are true:
 
