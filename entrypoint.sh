@@ -42,7 +42,7 @@ fi
 BASHRC
 
 # Start virtual framebuffer so Chromium can run without a real display.
-# Used when agents invoke claude --chrome (native CDP path).
+# Required by @playwright/mcp — Playwright uses Chromium on this virtual display.
 Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp &
 echo "[entrypoint] Xvfb started on display :99"
 

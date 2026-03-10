@@ -56,12 +56,14 @@ WORKDIR /app
 COPY --from=build /app /app
 RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/codex@latest
 
-# Install Chromium and Xvfb for browser automation.
-# - chromium: used by both claude --chrome (native CDP path) and @playwright/mcp
-# - xvfb: virtual framebuffer so Chromium can run without a real display
+# Install Chromium, Xvfb, and Playwright MCP for agent browser automation.
+# - chromium: headless browser used by @playwright/mcp
+# - xvfb: virtual framebuffer required by Chromium (even in headless mode)
+# - @playwright/mcp: MCP server that exposes browser automation tools to agents
 # PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 tells Playwright to use the system Chromium
 # instead of downloading its own copy.
 # DISPLAY=:99 is the virtual display Xvfb will start on (see entrypoint.sh).
+# Agents opt in via: mcpConfigPath: "/app/mcp.json" in their adapter config.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends chromium xvfb \
   && rm -rf /var/lib/apt/lists/*
