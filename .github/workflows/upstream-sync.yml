@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # SYNC_PAT must be a PAT with `repo` + `workflow` scopes.
+          # SYNC_PAT must be a fine-grained PAT with Contents + Pull requests + Workflows write.
           # GITHUB_TOKEN cannot push .github/workflows/ changes from upstream.
           token: ${{ secrets.SYNC_PAT }}
 
@@ -34,7 +34,7 @@ jobs:
       - name: Check for existing sync PR
         id: check_pr
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
         run: |
           BRANCH="sync/upstream-${{ steps.date.outputs.today }}"
           EXISTING=$(gh pr list \
@@ -119,7 +119,7 @@ jobs:
       - name: Create PR (clean merge)
         if: steps.merge.outputs.merge_clean == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
         run: |
           gh pr create \
             --repo "$GITHUB_REPOSITORY" \
@@ -128,6 +128,17 @@ jobs:
             --title "chore: sync upstream paperclip (${{ steps.date.outputs.today }})" \
             --body-file /tmp/pr_body.md \
             --assignee kaylenmistry
+
+      - name: Ensure conflicts label exists
+        if: steps.merge.outputs.merge_clean == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+        run: |
+          gh label create conflicts \
+            --repo "$GITHUB_REPOSITORY" \
+            --color "d93f0b" \
+            --description "Has merge conflicts requiring manual resolution" \
+            2>/dev/null || true
 
       - name: Write PR body (conflicts)
         if: steps.merge.outputs.merge_clean == 'false'
@@ -159,7 +170,7 @@ jobs:
       - name: Create PR (conflicts)
         if: steps.merge.outputs.merge_clean == 'false'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
         run: |
           gh pr create \
             --repo "$GITHUB_REPOSITORY" \

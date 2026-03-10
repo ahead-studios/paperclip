@@ -66,6 +66,19 @@ RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/cod
   && mkdir -p /paperclip \
   && chown node:node /paperclip
 
+# Install Chromium and Xvfb for browser automation.
+# - chromium: used by both claude --chrome (native CDP path) and @playwright/mcp
+# - xvfb: virtual framebuffer so Chromium can run without a real display
+# PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 tells Playwright to use the system Chromium
+# instead of downloading its own copy.
+# DISPLAY=:99 is the virtual display Xvfb will start on (see entrypoint.sh).
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends chromium xvfb \
+  && rm -rf /var/lib/apt/lists/*
+RUN npm install --global @playwright/mcp
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
+    DISPLAY=:99
+
 # Install binary tools for agent use
 # TARGETARCH is injected by Docker buildx (amd64 or arm64)
 ARG TARGETARCH=arm64
@@ -115,6 +128,9 @@ ENV NODE_ENV=production \
   PAPERCLIP_CONFIG=/paperclip/instances/default/config.json \
   PAPERCLIP_DEPLOYMENT_MODE=authenticated \
   PAPERCLIP_DEPLOYMENT_EXPOSURE=private
+
+# Default MCP config — agents reference this via mcpConfigPath: "/app/mcp.json"
+COPY mcp.json /app/mcp.json
 
 RUN chown -R paperclip:paperclip /app /paperclip
 
