@@ -15,7 +15,9 @@ if [[ -n "${CODEX_CREDENTIALS:-}" ]]; then
 fi
 
 # Authenticate gh CLI using GitHub App (preferred) or PAT fallback
-if [[ -n "${GITHUB_APP_ID:-}" && -n "${GITHUB_APP_PRIVATE_KEY:-}" && -n "${GITHUB_APP_INSTALLATION_ID:-}" ]]; then
+# GitHub App auth temporarily disabled — App ID / key mismatch unresolved (AHE-344).
+# Using GITHUB_TOKEN PAT fallback in the meantime.
+if false && [[ -n "${GITHUB_APP_ID:-}" && -n "${GITHUB_APP_PRIVATE_KEY:-}" && -n "${GITHUB_APP_INSTALLATION_ID:-}" ]]; then
   echo "[entrypoint] Authenticating gh CLI via GitHub App..."
 
   # GITHUB_APP_PRIVATE_KEY is the raw PEM private key.
