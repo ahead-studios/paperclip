@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
 import { execute, testEnvironment } from "@paperclipai/adapter-openclaw-gateway/server";
-import { parseOpenClawGatewayStdoutLine } from "@paperclipai/adapter-openclaw-gateway/ui";
+import {
+  buildOpenClawGatewayConfig,
+  parseOpenClawGatewayStdoutLine,
+} from "@paperclipai/adapter-openclaw-gateway/ui";
 import type { AdapterExecutionContext } from "@paperclipai/adapter-utils";
 
 function buildContext(
@@ -36,7 +39,9 @@ function buildContext(
   };
 }
 
-async function createMockGatewayServer() {
+async function createMockGatewayServer(options?: {
+  waitPayload?: Record<string, unknown>;
+}) {
   const server = createServer();
   const wss = new WebSocketServer({ server });
 
@@ -136,6 +141,208 @@ async function createMockGatewayServer() {
             type: "res",
             id: frame.id,
             ok: true,
+            payload: options?.waitPayload ?? {
+              runId: frame.params?.runId,
+              status: "ok",
+              startedAt: 1,
+              endedAt: 2,
+            },
+          }),
+        );
+      }
+    });
+  });
+
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Failed to resolve test server address");
+  }
+
+  return {
+    url: `ws://127.0.0.1:${address.port}`,
+    getAgentPayload: () => agentPayload,
+    close: async () => {
+      await new Promise<void>((resolve) => wss.close(() => resolve()));
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    },
+  };
+}
+
+async function createMockGatewayServerWithPairing() {
+  const server = createServer();
+  const wss = new WebSocketServer({ server });
+
+  let agentPayload: Record<string, unknown> | null = null;
+  let approved = false;
+  let pendingRequestId = "req-1";
+  let lastSeenDeviceId: string | null = null;
+
+  wss.on("connection", (socket) => {
+    socket.send(
+      JSON.stringify({
+        type: "event",
+        event: "connect.challenge",
+        payload: { nonce: "nonce-123" },
+      }),
+    );
+
+    socket.on("message", (raw) => {
+      const text = Buffer.isBuffer(raw) ? raw.toString("utf8") : String(raw);
+      const frame = JSON.parse(text) as {
+        type: string;
+        id: string;
+        method: string;
+        params?: Record<string, unknown>;
+      };
+
+      if (frame.type !== "req") return;
+
+      if (frame.method === "connect") {
+        const device = frame.params?.device as Record<string, unknown> | undefined;
+        const deviceId = typeof device?.id === "string" ? device.id : null;
+        if (deviceId) {
+          lastSeenDeviceId = deviceId;
+        }
+
+        if (deviceId && !approved) {
+          socket.send(
+            JSON.stringify({
+              type: "res",
+              id: frame.id,
+              ok: false,
+              error: {
+                code: "NOT_PAIRED",
+                message: "pairing required",
+                details: {
+                  code: "PAIRING_REQUIRED",
+                  requestId: pendingRequestId,
+                  reason: "not-paired",
+                },
+              },
+            }),
+          );
+          socket.close(1008, "pairing required");
+          return;
+        }
+
+        socket.send(
+          JSON.stringify({
+            type: "res",
+            id: frame.id,
+            ok: true,
+            payload: {
+              type: "hello-ok",
+              protocol: 3,
+              server: { version: "test", connId: "conn-1" },
+              features: {
+                methods: ["connect", "agent", "agent.wait", "device.pair.list", "device.pair.approve"],
+                events: ["agent"],
+              },
+              snapshot: { version: 1, ts: Date.now() },
+              policy: { maxPayload: 1_000_000, maxBufferedBytes: 1_000_000, tickIntervalMs: 30_000 },
+            },
+          }),
+        );
+        return;
+      }
+
+      if (frame.method === "device.pair.list") {
+        socket.send(
+          JSON.stringify({
+            type: "res",
+            id: frame.id,
+            ok: true,
+            payload: {
+              pending: approved
+                ? []
+                : [
+                    {
+                      requestId: pendingRequestId,
+                      deviceId: lastSeenDeviceId ?? "device-unknown",
+                    },
+                  ],
+              paired: approved && lastSeenDeviceId ? [{ deviceId: lastSeenDeviceId }] : [],
+            },
+          }),
+        );
+        return;
+      }
+
+      if (frame.method === "device.pair.approve") {
+        const requestId = frame.params?.requestId;
+        if (requestId !== pendingRequestId) {
+          socket.send(
+            JSON.stringify({
+              type: "res",
+              id: frame.id,
+              ok: false,
+              error: { code: "INVALID_REQUEST", message: "unknown requestId" },
+            }),
+          );
+          return;
+        }
+        approved = true;
+        socket.send(
+          JSON.stringify({
+            type: "res",
+            id: frame.id,
+            ok: true,
+            payload: {
+              requestId: pendingRequestId,
+              device: {
+                deviceId: lastSeenDeviceId ?? "device-unknown",
+              },
+            },
+          }),
+        );
+        return;
+      }
+
+      if (frame.method === "agent") {
+        agentPayload = frame.params ?? null;
+        const runId =
+          typeof frame.params?.idempotencyKey === "string"
+            ? frame.params.idempotencyKey
+            : "run-123";
+
+        socket.send(
+          JSON.stringify({
+            type: "res",
+            id: frame.id,
+            ok: true,
+            payload: {
+              runId,
+              status: "accepted",
+              acceptedAt: Date.now(),
+            },
+          }),
+        );
+        socket.send(
+          JSON.stringify({
+            type: "event",
+            event: "agent",
+            payload: {
+              runId,
+              seq: 1,
+              stream: "assistant",
+              ts: Date.now(),
+              data: { delta: "ok" },
+            },
+          }),
+        );
+        return;
+      }
+
+      if (frame.method === "agent.wait") {
+        socket.send(
+          JSON.stringify({
+            type: "res",
+            id: frame.id,
+            ok: true,
             payload: {
               runId: frame.params?.runId,
               status: "ok",
@@ -210,6 +417,29 @@ describe("openclaw gateway adapter execute", () => {
             onLog: async (_stream, chunk) => {
               logs.push(chunk);
             },
+            context: {
+              taskId: "task-123",
+              issueId: "issue-123",
+              wakeReason: "issue_assigned",
+              issueIds: ["issue-123"],
+              paperclipWorkspace: {
+                cwd: "/tmp/worktrees/pap-123",
+                strategy: "git_worktree",
+                branchName: "pap-123-test",
+              },
+              paperclipWorkspaces: [
+                {
+                  id: "workspace-1",
+                  cwd: "/tmp/project",
+                },
+              ],
+              paperclipRuntimeServiceIntents: [
+                {
+                  name: "preview",
+                  lifecycle: "ephemeral",
+                },
+              ],
+            },
           },
         ),
       );
@@ -222,10 +452,37 @@ describe("openclaw gateway adapter execute", () => {
       const payload = gateway.getAgentPayload();
       expect(payload).toBeTruthy();
       expect(payload?.idempotencyKey).toBe("run-123");
-      expect(payload?.sessionKey).toBe("paperclip");
+      expect(payload?.sessionKey).toBe("paperclip:issue:issue-123");
       expect(String(payload?.message ?? "")).toContain("wake now");
       expect(String(payload?.message ?? "")).toContain("PAPERCLIP_RUN_ID=run-123");
       expect(String(payload?.message ?? "")).toContain("PAPERCLIP_TASK_ID=task-123");
+      expect(payload?.paperclip).toEqual(
+        expect.objectContaining({
+          runId: "run-123",
+          companyId: "company-123",
+          agentId: "agent-123",
+          taskId: "task-123",
+          issueId: "issue-123",
+          workspace: expect.objectContaining({
+            cwd: "/tmp/worktrees/pap-123",
+            strategy: "git_worktree",
+          }),
+          workspaces: [
+            expect.objectContaining({
+              id: "workspace-1",
+              cwd: "/tmp/project",
+            }),
+          ],
+          workspaceRuntime: expect.objectContaining({
+            services: [
+              expect.objectContaining({
+                name: "preview",
+                lifecycle: "ephemeral",
+              }),
+            ],
+          }),
+        }),
+      );
 
       expect(logs.some((entry) => entry.includes("[openclaw-gateway:event] run=run-123 stream=assistant"))).toBe(true);
     } finally {
@@ -237,6 +494,147 @@ describe("openclaw gateway adapter execute", () => {
     const result = await execute(buildContext({}));
     expect(result.exitCode).toBe(1);
     expect(result.errorCode).toBe("openclaw_gateway_url_missing");
+  });
+
+  it("returns adapter-managed runtime services from gateway result meta", async () => {
+    const gateway = await createMockGatewayServer({
+      waitPayload: {
+        runId: "run-123",
+        status: "ok",
+        startedAt: 1,
+        endedAt: 2,
+        meta: {
+          runtimeServices: [
+            {
+              name: "preview",
+              scopeType: "run",
+              url: "https://preview.example/run-123",
+              providerRef: "sandbox-123",
+              lifecycle: "ephemeral",
+            },
+          ],
+        },
+      },
+    });
+
+    try {
+      const result = await execute(
+        buildContext({
+          url: gateway.url,
+          headers: {
+            "x-openclaw-token": "gateway-token",
+          },
+          waitTimeoutMs: 2000,
+        }),
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.runtimeServices).toEqual([
+        expect.objectContaining({
+          serviceName: "preview",
+          scopeType: "run",
+          url: "https://preview.example/run-123",
+          providerRef: "sandbox-123",
+          lifecycle: "ephemeral",
+          status: "running",
+        }),
+      ]);
+    } finally {
+      await gateway.close();
+    }
+  });
+
+  it("auto-approves pairing once and retries the run", async () => {
+    const gateway = await createMockGatewayServerWithPairing();
+    const logs: string[] = [];
+
+    try {
+      const result = await execute(
+        buildContext(
+          {
+            url: gateway.url,
+            headers: {
+              "x-openclaw-token": "gateway-token",
+            },
+            payloadTemplate: {
+              message: "wake now",
+            },
+            waitTimeoutMs: 2000,
+          },
+          {
+            onLog: async (_stream, chunk) => {
+              logs.push(chunk);
+            },
+          },
+        ),
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.summary).toContain("ok");
+      expect(logs.some((entry) => entry.includes("pairing required; attempting automatic pairing approval"))).toBe(
+        true,
+      );
+      expect(logs.some((entry) => entry.includes("auto-approved pairing request"))).toBe(true);
+      expect(gateway.getAgentPayload()).toBeTruthy();
+    } finally {
+      await gateway.close();
+    }
+  });
+});
+
+describe("openclaw gateway ui build config", () => {
+  it("parses payload template and runtime services json", () => {
+    const config = buildOpenClawGatewayConfig({
+      adapterType: "openclaw_gateway",
+      cwd: "",
+      promptTemplate: "",
+      model: "",
+      thinkingEffort: "",
+      chrome: false,
+      dangerouslySkipPermissions: false,
+      search: false,
+      dangerouslyBypassSandbox: false,
+      command: "",
+      args: "",
+      extraArgs: "",
+      envVars: "",
+      envBindings: {},
+      url: "wss://gateway.example/ws",
+      payloadTemplateJson: JSON.stringify({
+        agentId: "remote-agent-123",
+        metadata: { team: "platform" },
+      }),
+      runtimeServicesJson: JSON.stringify({
+        services: [
+          {
+            name: "preview",
+            lifecycle: "shared",
+          },
+        ],
+      }),
+      bootstrapPrompt: "",
+      maxTurnsPerRun: 0,
+      heartbeatEnabled: true,
+      intervalSec: 300,
+    });
+
+    expect(config).toEqual(
+      expect.objectContaining({
+        url: "wss://gateway.example/ws",
+        payloadTemplate: {
+          agentId: "remote-agent-123",
+          metadata: { team: "platform" },
+        },
+        workspaceRuntime: {
+          services: [
+            {
+              name: "preview",
+              lifecycle: "shared",
+            },
+          ],
+        },
+      }),
+    );
   });
 });
 

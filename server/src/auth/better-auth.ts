@@ -71,6 +71,8 @@ export function createBetterAuthInstance(db: Db, config: Config, trustedOrigins?
   const effectiveTrustedOrigins = trustedOrigins ?? deriveAuthTrustedOrigins(config);
 
   const entraEnabled = !!(config.entraClientId && config.entraClientSecret);
+  const publicUrl = process.env.PAPERCLIP_PUBLIC_URL ?? baseUrl;
+  const isHttpOnly = publicUrl ? publicUrl.startsWith("http://") : false;
 
   const authConfig = {
     baseURL: baseUrl,
@@ -88,6 +90,7 @@ export function createBetterAuthInstance(db: Db, config: Config, trustedOrigins?
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
+      disableSignUp: config.authDisableSignUp,
     },
     ...(entraEnabled && {
       socialProviders: {
@@ -98,6 +101,7 @@ export function createBetterAuthInstance(db: Db, config: Config, trustedOrigins?
         },
       },
     }),
+    ...(isHttpOnly ? { advanced: { useSecureCookies: false } } : {}),
   };
 
   if (!baseUrl) {
