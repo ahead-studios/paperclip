@@ -18,10 +18,20 @@ fi
 if [[ -n "${GITHUB_APP_ID:-}" && -n "${GITHUB_APP_PRIVATE_KEY:-}" && -n "${GITHUB_APP_INSTALLATION_ID:-}" ]]; then
   echo "[entrypoint] Authenticating gh CLI via GitHub App..."
 
-  # GITHUB_APP_PRIVATE_KEY is the raw PEM private key
+  # GITHUB_APP_PRIVATE_KEY is the raw PEM private key.
+  # ECS Secrets Manager may inject it with literal \n instead of actual newlines —
+  # use printf '%b' to convert escape sequences to real characters.
   TMPKEY=$(mktemp)
   chmod 600 "$TMPKEY"
-  echo "$GITHUB_APP_PRIVATE_KEY" > "$TMPKEY"
+  printf '%b' "$GITHUB_APP_PRIVATE_KEY" > "$TMPKEY"
+
+  # Validate the PEM key before attempting JWT generation
+  if ! openssl rsa -in "$TMPKEY" -check -noout 2>/dev/null; then
+    echo "[entrypoint] ERROR: GITHUB_APP_PRIVATE_KEY is invalid or malformed (openssl check failed)" >&2
+    echo "[entrypoint] Key file line count: $(wc -l < "$TMPKEY"), size: $(wc -c < "$TMPKEY") bytes" >&2
+    rm -f "$TMPKEY"
+    exit 1
+  fi
 
   # Generate a JWT signed with RS256 for the GitHub App
   NOW=$(date +%s)
@@ -36,12 +46,16 @@ if [[ -n "${GITHUB_APP_ID:-}" && -n "${GITHUB_APP_PRIVATE_KEY:-}" && -n "${GITHU
   JWT="${HEADER}.${PAYLOAD}.${SIG}"
   rm -f "$TMPKEY"
 
-  # Exchange JWT for an installation access token
-  RESP=$(curl -sf -X POST \
+  # Exchange JWT for an installation access token — capture body on failure for debugging
+  RESP=$(curl -s --fail-with-body -X POST \
     -H "Authorization: Bearer ${JWT}" \
     -H "Accept: application/vnd.github+json" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
-    "https://api.github.com/app/installations/${GITHUB_APP_INSTALLATION_ID}/access_tokens")
+    "https://api.github.com/app/installations/${GITHUB_APP_INSTALLATION_ID}/access_tokens") || {
+    echo "[entrypoint] ERROR: GitHub App token exchange failed. Response:" >&2
+    echo "$RESP" >&2
+    exit 1
+  }
 
   GITHUB_INSTALLATION_TOKEN=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).token)" <<< "$RESP")
 
