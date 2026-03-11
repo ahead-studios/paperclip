@@ -7,6 +7,17 @@ import { Button } from "@/components/ui/button";
 import { AsciiArtAnimation } from "@/components/AsciiArtAnimation";
 import { Sparkles } from "lucide-react";
 
+function MicrosoftIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 21 21" fill="none" aria-hidden="true">
+      <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+      <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+      <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+      <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+    </svg>
+  );
+}
+
 type AuthMode = "sign_in" | "sign_up";
 
 export function AuthPage() {
@@ -24,6 +35,19 @@ export function AuthPage() {
     queryKey: queryKeys.auth.session,
     queryFn: () => authApi.getSession(),
     retry: false,
+  });
+  const { data: providers } = useQuery({
+    queryKey: ["auth", "providers"],
+    queryFn: () => authApi.getProviders(),
+    retry: false,
+  });
+  const entraEnabled = providers?.entra ?? false;
+
+  const entraMutation = useMutation({
+    mutationFn: () => authApi.signInMicrosoft(nextPath),
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : "Microsoft sign-in failed");
+    },
   });
 
   useEffect(() => {
@@ -86,6 +110,29 @@ export function AuthPage() {
               ? "Use your email and password to access this instance."
               : "Create an account for this instance. Email confirmation is not required in v1."}
           </p>
+
+          {entraEnabled && (
+            <div className="mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2"
+                disabled={entraMutation.isPending}
+                onClick={() => entraMutation.mutate()}
+              >
+                <MicrosoftIcon />
+                {entraMutation.isPending ? "Redirecting…" : "Sign in with Microsoft"}
+              </Button>
+              <div className="relative mt-4 mb-2">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-background px-2 text-muted-foreground">or continue with email</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <form
             className="mt-6 space-y-4"

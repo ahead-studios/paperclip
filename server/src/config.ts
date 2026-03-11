@@ -37,6 +37,9 @@ export interface Config {
   allowedHostnames: string[];
   authBaseUrlMode: AuthBaseUrlMode;
   authPublicBaseUrl: string | undefined;
+  entraClientId: string | undefined;
+  entraClientSecret: string | undefined;
+  entraTenantId: string;
   databaseMode: DatabaseMode;
   databaseUrl: string | undefined;
   embeddedPostgresDataDir: string;
@@ -130,9 +133,12 @@ export function loadConfig(): Config {
     AUTH_BASE_URL_MODES.includes(authBaseUrlModeFromEnvRaw as AuthBaseUrlMode)
       ? (authBaseUrlModeFromEnvRaw as AuthBaseUrlMode)
       : null;
+  const publicUrlFromEnv = process.env.PAPERCLIP_PUBLIC_URL;
   const authPublicBaseUrlRaw =
     process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL ??
     process.env.BETTER_AUTH_URL ??
+    process.env.BETTER_AUTH_BASE_URL ??
+    publicUrlFromEnv ??
     fileConfig?.auth?.publicBaseUrl;
   const authPublicBaseUrl = authPublicBaseUrlRaw?.trim() || undefined;
   const authBaseUrlMode: AuthBaseUrlMode =
@@ -146,8 +152,24 @@ export function loadConfig(): Config {
       .map((value) => value.trim().toLowerCase())
       .filter((value) => value.length > 0)
     : null;
+  const publicUrlHostname = authPublicBaseUrl
+    ? (() => {
+      try {
+        return new URL(authPublicBaseUrl).hostname.trim().toLowerCase();
+      } catch {
+        return null;
+      }
+    })()
+    : null;
   const allowedHostnames = Array.from(
-    new Set((allowedHostnamesFromEnv ?? fileConfig?.server.allowedHostnames ?? []).map((value) => value.trim().toLowerCase()).filter(Boolean)),
+    new Set(
+      [
+        ...(allowedHostnamesFromEnv ?? fileConfig?.server.allowedHostnames ?? []),
+        ...(publicUrlHostname ? [publicUrlHostname] : []),
+      ]
+        .map((value) => value.trim().toLowerCase())
+        .filter(Boolean),
+    ),
   );
   const companyDeletionEnvRaw = process.env.PAPERCLIP_ENABLE_COMPANY_DELETION;
   const companyDeletionEnabled =
@@ -184,6 +206,9 @@ export function loadConfig(): Config {
     allowedHostnames,
     authBaseUrlMode,
     authPublicBaseUrl,
+    entraClientId: process.env.PAPERCLIP_ENTRA_CLIENT_ID || undefined,
+    entraClientSecret: process.env.PAPERCLIP_ENTRA_CLIENT_SECRET || undefined,
+    entraTenantId: process.env.PAPERCLIP_ENTRA_TENANT_ID || "common",
     databaseMode: fileDatabaseMode,
     databaseUrl: process.env.DATABASE_URL ?? fileDbUrl,
     embeddedPostgresDataDir: resolveHomeAwarePath(

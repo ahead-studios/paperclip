@@ -39,6 +39,7 @@ export async function createApp(
     bindHost: string;
     authReady: boolean;
     companyDeletionEnabled: boolean;
+    entraEnabled: boolean;
     betterAuthHandler?: express.RequestHandler;
     resolveSession?: (req: ExpressRequest) => Promise<BetterAuthSessionResult | null>;
   },
@@ -47,6 +48,13 @@ export async function createApp(
 
   app.use(express.json());
   app.use(httpLogger);
+
+  // Health check must be registered before privateHostnameGuard so ECS can reach
+  // it via the container's IP address (which is never in the hostname allowlist).
+  app.get("/health", (_req, res) => {
+    res.json({ status: "ok" });
+  });
+
   const privateHostnameGateEnabled =
     opts.deploymentMode === "authenticated" && opts.deploymentExposure === "private";
   const privateHostnameAllowSet = resolvePrivateHostnameAllowSet({
@@ -66,6 +74,9 @@ export async function createApp(
       resolveSession: opts.resolveSession,
     }),
   );
+  app.get("/api/auth/providers", (_req, res) => {
+    res.json({ entra: opts.entraEnabled });
+  });
   app.get("/api/auth/get-session", (req, res) => {
     if (req.actor.type !== "board" || !req.actor.userId) {
       res.status(401).json({ error: "Unauthorized" });
@@ -121,6 +132,9 @@ export async function createApp(
     }),
   );
   app.use("/api", api);
+  app.use("/api", (_req, res) => {
+    res.status(404).json({ error: "API route not found" });
+  });
 
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   if (opts.uiMode === "static") {
@@ -133,7 +147,7 @@ export async function createApp(
     if (uiDist) {
       app.use(express.static(uiDist));
       app.get(/.*/, (_req, res) => {
-        res.sendFile(path.join(uiDist, "index.html"));
+        res.sendFile("index.html", { root: uiDist });
       });
     } else {
       console.warn("[paperclip] UI dist not found; running in API-only mode");

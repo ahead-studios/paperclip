@@ -603,11 +603,10 @@ export function heartbeatService(db: Db) {
       warnings.push(
         `No project workspace directory is currently available for this issue. Using fallback workspace "${cwd}" for this run.`,
       );
-    } else {
-      warnings.push(
-        `No project or prior session workspace was available. Using fallback workspace "${cwd}" for this run.`,
-      );
     }
+    // When there is no project context and no prior session, the fallback is
+    // expected behaviour — the adapter will use its own config.cwd if set.
+    // No warning needed in this case.
     return {
       cwd,
       source: "agent_home" as const,

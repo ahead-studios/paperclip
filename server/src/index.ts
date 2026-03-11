@@ -412,6 +412,7 @@ if (config.deploymentMode === "authenticated") {
   const {
     createBetterAuthHandler,
     createBetterAuthInstance,
+    deriveAuthTrustedOrigins,
     resolveBetterAuthSession,
     resolveBetterAuthSessionFromHeaders,
   } = await import("./auth/better-auth.js");
@@ -422,7 +423,25 @@ if (config.deploymentMode === "authenticated") {
       "authenticated mode requires BETTER_AUTH_SECRET (or PAPERCLIP_AGENT_JWT_SECRET) to be set",
     );
   }
-  const auth = createBetterAuthInstance(db as any, config);
+  const derivedTrustedOrigins = deriveAuthTrustedOrigins(config);
+  const envTrustedOrigins = (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  const effectiveTrustedOrigins = Array.from(new Set([...derivedTrustedOrigins, ...envTrustedOrigins]));
+  logger.info(
+    {
+      authBaseUrlMode: config.authBaseUrlMode,
+      authPublicBaseUrl: config.authPublicBaseUrl ?? null,
+      trustedOrigins: effectiveTrustedOrigins,
+      trustedOriginsSource: {
+        derived: derivedTrustedOrigins.length,
+        env: envTrustedOrigins.length,
+      },
+    },
+    "Authenticated mode auth origin configuration",
+  );
+  const auth = createBetterAuthInstance(db as any, config, effectiveTrustedOrigins);
   betterAuthHandler = createBetterAuthHandler(auth);
   resolveSession = (req) => resolveBetterAuthSession(auth, req);
   resolveSessionFromHeaders = (headers) => resolveBetterAuthSessionFromHeaders(auth, headers);
@@ -441,11 +460,11 @@ const app = await createApp(db as any, {
   bindHost: config.host,
   authReady,
   companyDeletionEnabled: config.companyDeletionEnabled,
+  entraEnabled: !!(config.entraClientId && config.entraClientSecret),
   betterAuthHandler,
   resolveSession,
 });
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const server = createServer(app as any);
+const server = createServer(app as unknown as Parameters<typeof createServer>[0]);
 const listenPort = await detectPort(config.port);
 
 if (listenPort !== config.port) {
