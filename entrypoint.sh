@@ -68,8 +68,9 @@ if [[ -n "${GITHUB_APP_ID:-}" && -n "${GITHUB_APP_PRIVATE_KEY:-}" && -n "${GITHU
   echo "[entrypoint] gh CLI authenticated via GitHub App (installation ${GITHUB_APP_INSTALLATION_ID})"
 
 elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
-  echo "$GITHUB_TOKEN" | gh auth login --with-token
-  echo "[entrypoint] gh CLI authenticated via personal access token"
+  # gh CLI automatically picks up GITHUB_TOKEN from the environment — no explicit
+  # login call needed (and gh auth login --with-token errors when the env var is set).
+  echo "[entrypoint] gh CLI will use GITHUB_TOKEN from environment"
 fi
 
 # Write a .bashrc that preserves the full PATH for agent shell sessions.
