@@ -79,8 +79,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Tag commit with ECR image tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           SHORT_SHA="${GITHUB_SHA:0:7}"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}"
           git tag "image/${SHORT_SHA}"
           git push origin "image/${SHORT_SHA}"
 
