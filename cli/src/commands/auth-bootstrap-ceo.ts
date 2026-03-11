@@ -134,11 +134,6 @@ export async function bootstrapCeoInvite(opts: {
     p.log.error(`Could not create bootstrap invite: ${err instanceof Error ? err.message : String(err)}`);
     p.log.info("If using embedded-postgres, start the Paperclip server and run this command again.");
   } finally {
-<<<<<<< HEAD
-    // Close the connection pool so the process can exit cleanly (e.g. when run from entrypoint.sh)
-    await (db as any).$client.end();
-=======
     await closableDb.$client?.end?.({ timeout: 5 }).catch(() => undefined);
->>>>>>> upstream/master
   }
 }
