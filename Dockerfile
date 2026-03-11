@@ -61,7 +61,9 @@ RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/cod
 # PLAYWRIGHT_BROWSERS_PATH puts browsers in a fixed path that is accessible to all
 # users in the container (not under any user's $HOME). The explicit install step uses
 # --with-deps to pull the OS libraries Chromium requires.
-# chmod ensures the paperclip user can read the downloaded browsers at runtime.
+# chmod -R a+rx ensures the paperclip user can read the downloaded browsers at runtime.
+# chmod a+w on the top-level directory lets the MCP server create user-data directories
+# (e.g. /ms-playwright/mcp-chrome-*) without EACCES errors (browser binaries stay read-only).
 # Agents opt in via: mcpConfigPath: "/app/mcp.json" in their adapter config.
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN npm install --global @playwright/mcp
@@ -69,7 +71,8 @@ RUN npm install --global @playwright/mcp
 # so that the installed browser revision exactly matches what the MCP package expects.
 # Using the global playwright (different version) would cause a revision mismatch at runtime.
 RUN /usr/local/lib/node_modules/@playwright/mcp/node_modules/.bin/playwright install --with-deps chromium && \
-    chmod -R a+rx /ms-playwright
+    chmod -R a+rx /ms-playwright && \
+    chmod a+w /ms-playwright
 
 # Install binary tools for agent use
 # TARGETARCH is injected by Docker buildx (amd64 or arm64)
