@@ -6,6 +6,10 @@ import {
   DraftInput,
   help,
 } from "../../components/agent-config-primitives";
+import {
+  PayloadTemplateJsonField,
+  RuntimeServicesJsonField,
+} from "../runtime-json-fields";
 
 const inputClass =
   "w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40";
@@ -112,6 +116,22 @@ export function OpenClawGatewayConfigFields({
         />
       </Field>
 
+      <PayloadTemplateJsonField
+        isCreate={isCreate}
+        values={values}
+        set={set}
+        config={config}
+        mark={mark}
+      />
+
+      <RuntimeServicesJsonField
+        isCreate={isCreate}
+        values={values}
+        set={set}
+        config={config}
+        mark={mark}
+      />
+
       {!isCreate && (
         <>
           <Field label="Paperclip API URL override">
@@ -204,15 +224,11 @@ export function OpenClawGatewayConfigFields({
             />
           </Field>
 
-          <Field label="Disable device auth">
-            <select
-              value={String(eff("adapterConfig", "disableDeviceAuth", Boolean(config.disableDeviceAuth ?? false)))}
-              onChange={(e) => mark("adapterConfig", "disableDeviceAuth", e.target.value === "true")}
-              className={inputClass}
-            >
-              <option value="false">No (recommended)</option>
-              <option value="true">Yes</option>
-            </select>
+          <Field label="Device auth">
+            <div className="text-xs text-muted-foreground leading-relaxed">
+              Always enabled for gateway agents. Paperclip persists a device key during onboarding so pairing approvals
+              remain stable across runs.
+            </div>
           </Field>
         </>
       )}
