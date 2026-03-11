@@ -1,7 +1,7 @@
 FROM node:lts-trixie-slim AS base
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-    ca-certificates curl git gh \
+    ca-certificates curl git gh openssl \
     # passwd provides useradd — not included in bookworm-slim by default
     passwd \
     # JSON/YAML/text processing
