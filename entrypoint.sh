@@ -33,17 +33,18 @@ if [[ -n "${GITHUB_APP_ID:-}" && -n "${GITHUB_APP_PRIVATE_KEY:-}" && -n "${GITHU
     exit 1
   fi
 
-  # Generate a JWT signed with RS256 for the GitHub App
-  NOW=$(date +%s)
-  IAT=$((NOW - 60))
-  EXP=$((NOW + 600))
-
-  b64url() { base64 -w 0 | tr '+/' '-_' | tr -d '='; }
-
-  HEADER=$(printf '{"alg":"RS256","typ":"JWT"}' | b64url)
-  PAYLOAD=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' "$IAT" "$EXP" "$GITHUB_APP_ID" | b64url)
-  SIG=$(printf '%s.%s' "$HEADER" "$PAYLOAD" | openssl dgst -sha256 -sign "$TMPKEY" -binary | b64url)
-  JWT="${HEADER}.${PAYLOAD}.${SIG}"
+  # Generate a JWT signed with RS256 for the GitHub App using Node.js crypto.
+  # The bash base64|openssl pipeline was fragile across environments (AHE-378).
+  # node:crypto is built-in — no extra deps required.
+  JWT=$(TMPKEY="$TMPKEY" GITHUB_APP_ID="$GITHUB_APP_ID" node -e '
+    const crypto = require("crypto"), fs = require("fs");
+    const key = fs.readFileSync(process.env.TMPKEY, "utf8");
+    const now = Math.floor(Date.now() / 1000);
+    const h = Buffer.from(JSON.stringify({alg:"RS256",typ:"JWT"})).toString("base64url");
+    const p = Buffer.from(JSON.stringify({iat:now-60,exp:now+600,iss:process.env.GITHUB_APP_ID})).toString("base64url");
+    const s = crypto.createSign("RSA-SHA256"); s.update(h+"."+p);
+    process.stdout.write(h+"."+p+"."+s.sign(key,"base64url"));
+  ')
   rm -f "$TMPKEY"
 
   # Exchange JWT for an installation access token — capture body on failure for debugging
@@ -66,6 +67,41 @@ if [[ -n "${GITHUB_APP_ID:-}" && -n "${GITHUB_APP_PRIVATE_KEY:-}" && -n "${GITHU
 
   echo "$GITHUB_INSTALLATION_TOKEN" | gh auth login --with-token
   echo "[entrypoint] gh CLI authenticated via GitHub App (installation ${GITHUB_APP_INSTALLATION_ID})"
+
+  # Installation tokens expire after 1 hour. Start a background loop that refreshes
+  # the token every 50 minutes so long-running containers stay authenticated.
+  (
+    set +e
+    while true; do
+      sleep 3000
+      echo "[entrypoint] Refreshing GitHub App installation token..."
+      _TMPKEY=$(mktemp); chmod 600 "$_TMPKEY"
+      printf '%b' "$GITHUB_APP_PRIVATE_KEY" > "$_TMPKEY"
+      _JWT=$(TMPKEY="$_TMPKEY" GITHUB_APP_ID="$GITHUB_APP_ID" node -e '
+        const crypto = require("crypto"), fs = require("fs");
+        const key = fs.readFileSync(process.env.TMPKEY, "utf8");
+        const now = Math.floor(Date.now() / 1000);
+        const h = Buffer.from(JSON.stringify({alg:"RS256",typ:"JWT"})).toString("base64url");
+        const p = Buffer.from(JSON.stringify({iat:now-60,exp:now+600,iss:process.env.GITHUB_APP_ID})).toString("base64url");
+        const s = crypto.createSign("RSA-SHA256"); s.update(h+"."+p);
+        process.stdout.write(h+"."+p+"."+s.sign(key,"base64url"));
+      ') || { echo "[entrypoint] ERROR: JWT generation failed during token refresh" >&2; rm -f "$_TMPKEY"; continue; }
+      rm -f "$_TMPKEY"
+      _RESP=$(curl -s --fail-with-body -X POST \
+        -H "Authorization: Bearer ${_JWT}" \
+        -H "Accept: application/vnd.github+json" \
+        -H "X-GitHub-Api-Version: 2022-11-28" \
+        "https://api.github.com/app/installations/${GITHUB_APP_INSTALLATION_ID}/access_tokens") || { echo "[entrypoint] ERROR: token exchange failed during refresh" >&2; continue; }
+      _TOKEN=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).token)" <<< "$_RESP") || { echo "[entrypoint] ERROR: token parse failed during refresh" >&2; continue; }
+      if [[ -n "$_TOKEN" ]]; then
+        echo "$_TOKEN" | gh auth login --with-token
+        echo "[entrypoint] gh CLI token refreshed (installation ${GITHUB_APP_INSTALLATION_ID})"
+      else
+        echo "[entrypoint] ERROR: empty token during refresh" >&2
+      fi
+    done
+  ) &
+  echo "[entrypoint] Token refresh loop started (PID $!, interval 50m)"
 
 elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
   # gh CLI automatically picks up GITHUB_TOKEN from the environment — no explicit
