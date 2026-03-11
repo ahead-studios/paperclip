@@ -20,9 +20,9 @@ docker build -t paperclip .
 docker run \
   -e CLAUDE_CODE_OAUTH_TOKEN="your-setup-token" \
   -e CODEX_CREDENTIALS="$(cat ~/.codex/credentials.json)" \
-  -e GITHUB_APP_ID="123456" \
-  -e GITHUB_APP_INSTALLATION_ID="78901234" \
-  -e GITHUB_APP_PRIVATE_KEY="$(base64 -w 0 < /path/to/app.private-key.pem)" \
+  -e GITHUB_APP_ID="2990013" \
+  -e GITHUB_APP_INSTALLATION_ID="113592369" \
+  -e PAPERCLIP_GITHUB_APP_PRIVATE_KEY="$(base64 -w 0 < /path/to/app.private-key.pem)" \
   -e DATABASE_URL="postgres://..." \
   -e BETTER_AUTH_SECRET="$(openssl rand -hex 32)" \
   -e BETTER_AUTH_URL="http://localhost:3100" \
@@ -38,9 +38,9 @@ docker run \
 |----------|--------|-------------|
 | `CLAUDE_CODE_OAUTH_TOKEN` | Secrets Manager | OAuth access token for Claude subscription auth. Obtain by running `claude setup-token` locally. |
 | `CODEX_CREDENTIALS` | Secrets Manager | Codex subscription token JSON. Obtain by running `codex auth login` locally. |
-| `GITHUB_APP_ID` | SSM Parameter Store | GitHub App ID (numeric). Used to authenticate the `gh` CLI via App PEM. |
-| `GITHUB_APP_INSTALLATION_ID` | SSM Parameter Store | Installation ID for the GitHub App on your org/repo. |
-| `GITHUB_APP_PRIVATE_KEY` | Secrets Manager | Base64-encoded PEM private key for the GitHub App. Encode with `base64 -w 0 < app.private-key.pem`. |
+| `GITHUB_APP_ID` | Inlined in task definition | GitHub App ID (numeric). Used to authenticate the `gh` CLI via App PEM. Value: `2990013`. |
+| `GITHUB_APP_INSTALLATION_ID` | Inlined in task definition | Installation ID for the GitHub App on `ahead-studios` org. Value: `113592369`. |
+| `PAPERCLIP_GITHUB_APP_PRIVATE_KEY` | Secrets Manager | Base64-encoded PEM private key for the GitHub App. Encode with `base64 -w 0 < app.private-key.pem`. Also used by `paperclip-commit` for verified commits. |
 | `GITHUB_TOKEN` | SSM Parameter Store | **Fallback only.** GitHub PAT with `repo` scope. Used if GitHub App vars are not set. |
 | `DATABASE_URL` | SSM Parameter Store | PostgreSQL connection string (Aurora in production). |
 | `BETTER_AUTH_SECRET` | Secrets Manager | Random secret used by Better Auth for session signing. Generate with `openssl rand -hex 32`. |

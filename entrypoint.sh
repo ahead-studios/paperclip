@@ -15,13 +15,13 @@ if [[ -n "${CODEX_CREDENTIALS:-}" ]]; then
 fi
 
 # Authenticate gh CLI using GitHub App (preferred) or PAT fallback
-if [[ -n "${GITHUB_APP_ID:-}" && -n "${GITHUB_APP_PRIVATE_KEY:-}" && -n "${GITHUB_APP_INSTALLATION_ID:-}" ]]; then
+if [[ -n "${GITHUB_APP_ID:-}" && -n "${PAPERCLIP_GITHUB_APP_PRIVATE_KEY:-}" && -n "${GITHUB_APP_INSTALLATION_ID:-}" ]]; then
   echo "[entrypoint] Authenticating gh CLI via GitHub App..."
 
-  # GITHUB_APP_PRIVATE_KEY must be base64-encoded PEM
+  # PAPERCLIP_GITHUB_APP_PRIVATE_KEY must be base64-encoded PEM
   TMPKEY=$(mktemp)
   chmod 600 "$TMPKEY"
-  echo "$GITHUB_APP_PRIVATE_KEY" | base64 -d > "$TMPKEY"
+  echo "$PAPERCLIP_GITHUB_APP_PRIVATE_KEY" | base64 -d > "$TMPKEY"
 
   # Generate a JWT signed with RS256 for the GitHub App
   NOW=$(date +%s)
