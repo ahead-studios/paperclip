@@ -33,17 +33,18 @@ if [[ -n "${GITHUB_APP_ID:-}" && -n "${GITHUB_APP_PRIVATE_KEY:-}" && -n "${GITHU
     exit 1
   fi
 
-  # Generate a JWT signed with RS256 for the GitHub App
-  NOW=$(date +%s)
-  IAT=$((NOW - 60))
-  EXP=$((NOW + 600))
-
-  b64url() { base64 -w 0 | tr '+/' '-_' | tr -d '='; }
-
-  HEADER=$(printf '{"alg":"RS256","typ":"JWT"}' | b64url)
-  PAYLOAD=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' "$IAT" "$EXP" "$GITHUB_APP_ID" | b64url)
-  SIG=$(printf '%s.%s' "$HEADER" "$PAYLOAD" | openssl dgst -sha256 -sign "$TMPKEY" -binary | b64url)
-  JWT="${HEADER}.${PAYLOAD}.${SIG}"
+  # Generate a JWT signed with RS256 for the GitHub App using Node.js crypto.
+  # The bash base64|openssl pipeline was fragile across environments (AHE-378).
+  # node:crypto is built-in — no extra deps required.
+  JWT=$(TMPKEY="$TMPKEY" GITHUB_APP_ID="$GITHUB_APP_ID" node -e '
+    const crypto = require("crypto"), fs = require("fs");
+    const key = fs.readFileSync(process.env.TMPKEY, "utf8");
+    const now = Math.floor(Date.now() / 1000);
+    const h = Buffer.from(JSON.stringify({alg:"RS256",typ:"JWT"})).toString("base64url");
+    const p = Buffer.from(JSON.stringify({iat:now-60,exp:now+600,iss:process.env.GITHUB_APP_ID})).toString("base64url");
+    const s = crypto.createSign("RSA-SHA256"); s.update(h+"."+p);
+    process.stdout.write(h+"."+p+"."+s.sign(key,"base64url"));
+  ')
   rm -f "$TMPKEY"
 
   # Exchange JWT for an installation access token — capture body on failure for debugging
