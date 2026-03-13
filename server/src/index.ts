@@ -334,6 +334,10 @@ export async function startServer(): Promise<StartedServer> {
         password: "paperclip",
         port,
         persistent: true,
+<<<<<<< HEAD
+=======
+        initdbFlags: ["--encoding=UTF8", "--locale=C"],
+>>>>>>> upstream/master
         onLog: appendEmbeddedPostgresLog,
         onError: appendEmbeddedPostgresLog,
       });
@@ -389,6 +393,10 @@ export async function startServer(): Promise<StartedServer> {
         "Use authenticated mode for non-loopback deployments.",
     );
   }
+<<<<<<< HEAD
+=======
+  
+>>>>>>> upstream/master
   if (config.deploymentMode === "local_trusted" && config.deploymentExposure !== "private") {
     throw new Error("local_trusted mode only supports private exposure");
   }
@@ -472,7 +480,10 @@ export async function startServer(): Promise<StartedServer> {
     bindHost: config.host,
     authReady,
     companyDeletionEnabled: config.companyDeletionEnabled,
+<<<<<<< HEAD
     entraEnabled: !!(config.entraClientId && config.entraClientSecret),
+=======
+>>>>>>> upstream/master
     betterAuthHandler,
     resolveSession,
   });
