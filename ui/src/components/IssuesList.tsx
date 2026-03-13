@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { Link } from "@/lib/router";
 import { useQuery } from "@tanstack/react-query";
 import { useDialog } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";
@@ -12,6 +11,7 @@ import { StatusIcon } from "./StatusIcon";
 import { PriorityIcon } from "./PriorityIcon";
 import { EmptyState } from "./EmptyState";
 import { Identity } from "./Identity";
+import { IssueRow } from "./IssueRow";
 import { PageSkeleton } from "./PageSkeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -142,6 +142,7 @@ interface IssuesListProps {
   liveIssueIds?: Set<string>;
   projectId?: string;
   viewStateKey: string;
+  issueLinkState?: unknown;
   initialAssignees?: string[];
   initialSearch?: string;
   onSearchChange?: (search: string) => void;
@@ -156,6 +157,7 @@ export function IssuesList({
   liveIssueIds,
   projectId,
   viewStateKey,
+  issueLinkState,
   initialAssignees,
   initialSearch,
   onSearchChange,
@@ -588,8 +590,9 @@ export function IssuesList({
             )}
             <CollapsibleContent>
               {group.items.map((issue) => (
-                <Link
+                <IssueRow
                   key={issue.id}
+<<<<<<< HEAD
                   to={`/issues/${issue.identifier ?? issue.id}`}
                   className="flex items-start gap-2 py-2.5 pl-2 pr-3 text-sm border-b border-border last:border-b-0 cursor-pointer hover:bg-accent/50 transition-colors no-underline text-inherit sm:items-center sm:py-2 sm:pl-1"
                 >
@@ -692,6 +695,88 @@ export function IssuesList({
                         align="end"
                         onClick={(e) => e.stopPropagation()}
                         onPointerDownOutside={() => setAssigneeSearch("")}
+=======
+                  issue={issue}
+                  issueLinkState={issueLinkState}
+                  desktopLeadingSpacer
+                  mobileLeading={(
+                    <span
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                    >
+                      <StatusIcon
+                        status={issue.status}
+                        onChange={(s) => onUpdateIssue(issue.id, { status: s })}
+                      />
+                    </span>
+                  )}
+                  desktopMetaLeading={(
+                    <>
+                      <span className="hidden sm:inline-flex">
+                        <PriorityIcon priority={issue.priority} />
+                      </span>
+                      <span
+                        className="hidden shrink-0 sm:inline-flex"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                      >
+                        <StatusIcon
+                          status={issue.status}
+                          onChange={(s) => onUpdateIssue(issue.id, { status: s })}
+                        />
+                      </span>
+                      <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                        {issue.identifier ?? issue.id.slice(0, 8)}
+                      </span>
+                      {liveIssueIds?.has(issue.id) && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-1.5 py-0.5 sm:gap-1.5 sm:px-2">
+                          <span className="relative flex h-2 w-2">
+                            <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-blue-400 opacity-75" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
+                          </span>
+                          <span className="hidden text-[11px] font-medium text-blue-600 dark:text-blue-400 sm:inline">
+                            Live
+                          </span>
+                        </span>
+                      )}
+                    </>
+                  )}
+                  mobileMeta={timeAgo(issue.updatedAt)}
+                  desktopTrailing={(
+                    <>
+                      {(issue.labels ?? []).length > 0 && (
+                        <span className="hidden items-center gap-1 overflow-hidden md:flex md:max-w-[240px]">
+                          {(issue.labels ?? []).slice(0, 3).map((label) => (
+                            <span
+                              key={label.id}
+                              className="inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium"
+                              style={{
+                                borderColor: label.color,
+                                color: label.color,
+                                backgroundColor: `${label.color}1f`,
+                              }}
+                            >
+                              {label.name}
+                            </span>
+                          ))}
+                          {(issue.labels ?? []).length > 3 && (
+                            <span className="text-[10px] text-muted-foreground">
+                              +{(issue.labels ?? []).length - 3}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                      <Popover
+                        open={assigneePickerIssueId === issue.id}
+                        onOpenChange={(open) => {
+                          setAssigneePickerIssueId(open ? issue.id : null);
+                          if (!open) setAssigneeSearch("");
+                        }}
+>>>>>>> upstream/master
                       >
                         <input
                           className="w-full px-2 py-1.5 text-xs bg-transparent outline-none border-b border-border mb-1 placeholder:text-muted-foreground/50"
@@ -702,10 +787,14 @@ export function IssuesList({
                         />
                         <div className="max-h-48 overflow-y-auto overscroll-contain">
                           <button
+<<<<<<< HEAD
                             className={cn(
                               "flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50",
                               !issue.assigneeAgentId && "bg-accent"
                             )}
+=======
+                            className="flex w-[180px] shrink-0 items-center rounded-md px-2 py-1 transition-colors hover:bg-accent/50"
+>>>>>>> upstream/master
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -714,6 +803,7 @@ export function IssuesList({
                           >
                             No assignee
                           </button>
+<<<<<<< HEAD
                           {(agents ?? [])
                             .filter((agent) => {
                               if (!assigneeSearch.trim()) return true;
@@ -743,6 +833,66 @@ export function IssuesList({
                     </span>
                   </span>
                 </Link>
+=======
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-56 p-1"
+                          align="end"
+                          onClick={(e) => e.stopPropagation()}
+                          onPointerDownOutside={() => setAssigneeSearch("")}
+                        >
+                          <input
+                            className="mb-1 w-full border-b border-border bg-transparent px-2 py-1.5 text-xs outline-none placeholder:text-muted-foreground/50"
+                            placeholder="Search agents..."
+                            value={assigneeSearch}
+                            onChange={(e) => setAssigneeSearch(e.target.value)}
+                            autoFocus
+                          />
+                          <div className="max-h-48 overflow-y-auto overscroll-contain">
+                            <button
+                              className={cn(
+                                "flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent/50",
+                                !issue.assigneeAgentId && "bg-accent",
+                              )}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                assignIssue(issue.id, null);
+                              }}
+                            >
+                              No assignee
+                            </button>
+                            {(agents ?? [])
+                              .filter((agent) => {
+                                if (!assigneeSearch.trim()) return true;
+                                return agent.name
+                                  .toLowerCase()
+                                  .includes(assigneeSearch.toLowerCase());
+                              })
+                              .map((agent) => (
+                                <button
+                                  key={agent.id}
+                                  className={cn(
+                                    "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-accent/50",
+                                    issue.assigneeAgentId === agent.id && "bg-accent",
+                                  )}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    assignIssue(issue.id, agent.id);
+                                  }}
+                                >
+                                  <Identity name={agent.name} size="sm" className="min-w-0" />
+                                </button>
+                              ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </>
+                  )}
+                  trailingMeta={formatDate(issue.createdAt)}
+                />
+>>>>>>> upstream/master
               ))}
             </CollapsibleContent>
           </Collapsible>

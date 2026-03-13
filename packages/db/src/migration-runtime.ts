@@ -96,6 +96,10 @@ async function ensureEmbeddedPostgresConnection(
     password: "paperclip",
     port: preferredPort,
     persistent: true,
+<<<<<<< HEAD
+=======
+    initdbFlags: ["--encoding=UTF8", "--locale=C"],
+>>>>>>> upstream/master
     onLog: () => {},
     onError: () => {},
   });
