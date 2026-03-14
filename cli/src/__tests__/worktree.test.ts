@@ -2,19 +2,34 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+<<<<<<< HEAD
 import { describe, expect, it } from "vitest";
+=======
+import { afterEach, describe, expect, it, vi } from "vitest";
+>>>>>>> upstream/master
 import {
   copyGitHooksToWorktreeGitDir,
   copySeededSecretsKey,
   rebindWorkspaceCwd,
+<<<<<<< HEAD
   resolveGitWorktreeAddArgs,
   resolveWorktreeMakeTargetPath,
+=======
+  resolveSourceConfigPath,
+  resolveGitWorktreeAddArgs,
+  resolveWorktreeMakeTargetPath,
+  worktreeInitCommand,
+>>>>>>> upstream/master
   worktreeMakeCommand,
 } from "../commands/worktree.js";
 import {
   buildWorktreeConfig,
   buildWorktreeEnvEntries,
   formatShellExports,
+<<<<<<< HEAD
+=======
+  generateWorktreeColor,
+>>>>>>> upstream/master
   resolveWorktreeSeedPlan,
   resolveWorktreeLocalPaths,
   rewriteLocalUrlPort,
@@ -22,6 +37,23 @@ import {
 } from "../commands/worktree-lib.js";
 import type { PaperclipConfig } from "../config/schema.js";
 
+<<<<<<< HEAD
+=======
+const ORIGINAL_CWD = process.cwd();
+const ORIGINAL_ENV = { ...process.env };
+
+afterEach(() => {
+  process.chdir(ORIGINAL_CWD);
+  for (const key of Object.keys(process.env)) {
+    if (!(key in ORIGINAL_ENV)) delete process.env[key];
+  }
+  for (const [key, value] of Object.entries(ORIGINAL_ENV)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+});
+
+>>>>>>> upstream/master
 function buildSourceConfig(): PaperclipConfig {
   return {
     $meta: {
@@ -115,6 +147,31 @@ describe("worktree helpers", () => {
     ).toEqual(["worktree", "add", "/tmp/feature-branch", "feature-branch"]);
   });
 
+<<<<<<< HEAD
+=======
+  it("builds git worktree add args with a start point", () => {
+    expect(
+      resolveGitWorktreeAddArgs({
+        branchName: "my-worktree",
+        targetPath: "/tmp/my-worktree",
+        branchExists: false,
+        startPoint: "public-gh/master",
+      }),
+    ).toEqual(["worktree", "add", "-b", "my-worktree", "/tmp/my-worktree", "public-gh/master"]);
+  });
+
+  it("uses start point even when a local branch with the same name exists", () => {
+    expect(
+      resolveGitWorktreeAddArgs({
+        branchName: "my-worktree",
+        targetPath: "/tmp/my-worktree",
+        branchExists: true,
+        startPoint: "origin/main",
+      }),
+    ).toEqual(["worktree", "add", "-b", "my-worktree", "/tmp/my-worktree", "origin/main"]);
+  });
+
+>>>>>>> upstream/master
   it("rewrites loopback auth URLs to the new port only", () => {
     expect(rewriteLocalUrlPort("http://127.0.0.1:3100", 3110)).toBe("http://127.0.0.1:3110/");
     expect(rewriteLocalUrlPort("https://paperclip.example", 3110)).toBe("https://paperclip.example");
@@ -144,6 +201,7 @@ describe("worktree helpers", () => {
       path.resolve("/tmp/paperclip-worktrees", "instances", "feature-worktree-support", "data", "storage"),
     );
 
+<<<<<<< HEAD
     const env = buildWorktreeEnvEntries(paths);
     expect(env.PAPERCLIP_HOME).toBe(path.resolve("/tmp/paperclip-worktrees"));
     expect(env.PAPERCLIP_INSTANCE_ID).toBe("feature-worktree-support");
@@ -151,6 +209,24 @@ describe("worktree helpers", () => {
     expect(formatShellExports(env)).toContain("export PAPERCLIP_INSTANCE_ID='feature-worktree-support'");
   });
 
+=======
+    const env = buildWorktreeEnvEntries(paths, {
+      name: "feature-worktree-support",
+      color: "#3abf7a",
+    });
+    expect(env.PAPERCLIP_HOME).toBe(path.resolve("/tmp/paperclip-worktrees"));
+    expect(env.PAPERCLIP_INSTANCE_ID).toBe("feature-worktree-support");
+    expect(env.PAPERCLIP_IN_WORKTREE).toBe("true");
+    expect(env.PAPERCLIP_WORKTREE_NAME).toBe("feature-worktree-support");
+    expect(env.PAPERCLIP_WORKTREE_COLOR).toBe("#3abf7a");
+    expect(formatShellExports(env)).toContain("export PAPERCLIP_INSTANCE_ID='feature-worktree-support'");
+  });
+
+  it("generates vivid worktree colors as hex", () => {
+    expect(generateWorktreeColor()).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+>>>>>>> upstream/master
   it("uses minimal seed mode to keep app state but drop heavy runtime history", () => {
     const minimal = resolveWorktreeSeedPlan("minimal");
     const full = resolveWorktreeSeedPlan("full");
@@ -167,7 +243,15 @@ describe("worktree helpers", () => {
 
   it("copies the source local_encrypted secrets key into the seeded worktree instance", () => {
     const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-worktree-secrets-"));
+<<<<<<< HEAD
     try {
+=======
+    const originalInlineMasterKey = process.env.PAPERCLIP_SECRETS_MASTER_KEY;
+    const originalKeyFile = process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE;
+    try {
+      delete process.env.PAPERCLIP_SECRETS_MASTER_KEY;
+      delete process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE;
+>>>>>>> upstream/master
       const sourceConfigPath = path.join(tempRoot, "source", "config.json");
       const sourceKeyPath = path.join(tempRoot, "source", "secrets", "master.key");
       const targetKeyPath = path.join(tempRoot, "target", "secrets", "master.key");
@@ -186,6 +270,19 @@ describe("worktree helpers", () => {
 
       expect(fs.readFileSync(targetKeyPath, "utf8")).toBe("source-master-key");
     } finally {
+<<<<<<< HEAD
+=======
+      if (originalInlineMasterKey === undefined) {
+        delete process.env.PAPERCLIP_SECRETS_MASTER_KEY;
+      } else {
+        process.env.PAPERCLIP_SECRETS_MASTER_KEY = originalInlineMasterKey;
+      }
+      if (originalKeyFile === undefined) {
+        delete process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE;
+      } else {
+        process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE = originalKeyFile;
+      }
+>>>>>>> upstream/master
       fs.rmSync(tempRoot, { recursive: true, force: true });
     }
   });
@@ -211,6 +308,95 @@ describe("worktree helpers", () => {
     }
   });
 
+<<<<<<< HEAD
+=======
+  it("persists the current agent jwt secret into the worktree env file", async () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-worktree-jwt-"));
+    const repoRoot = path.join(tempRoot, "repo");
+    const originalCwd = process.cwd();
+    const originalJwtSecret = process.env.PAPERCLIP_AGENT_JWT_SECRET;
+
+    try {
+      fs.mkdirSync(repoRoot, { recursive: true });
+      process.env.PAPERCLIP_AGENT_JWT_SECRET = "worktree-shared-secret";
+      process.chdir(repoRoot);
+
+      await worktreeInitCommand({
+        seed: false,
+        fromConfig: path.join(tempRoot, "missing", "config.json"),
+        home: path.join(tempRoot, ".paperclip-worktrees"),
+      });
+
+      const envPath = path.join(repoRoot, ".paperclip", ".env");
+      const envContents = fs.readFileSync(envPath, "utf8");
+      expect(envContents).toContain("PAPERCLIP_AGENT_JWT_SECRET=worktree-shared-secret");
+      expect(envContents).toContain("PAPERCLIP_WORKTREE_NAME=repo");
+      expect(envContents).toMatch(/PAPERCLIP_WORKTREE_COLOR=\"#[0-9a-f]{6}\"/);
+    } finally {
+      process.chdir(originalCwd);
+      if (originalJwtSecret === undefined) {
+        delete process.env.PAPERCLIP_AGENT_JWT_SECRET;
+      } else {
+        process.env.PAPERCLIP_AGENT_JWT_SECRET = originalJwtSecret;
+      }
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("defaults the seed source config to the current repo-local Paperclip config", () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-worktree-source-config-"));
+    const repoRoot = path.join(tempRoot, "repo");
+    const localConfigPath = path.join(repoRoot, ".paperclip", "config.json");
+    const originalCwd = process.cwd();
+    const originalPaperclipConfig = process.env.PAPERCLIP_CONFIG;
+
+    try {
+      fs.mkdirSync(path.dirname(localConfigPath), { recursive: true });
+      fs.writeFileSync(localConfigPath, JSON.stringify(buildSourceConfig()), "utf8");
+      delete process.env.PAPERCLIP_CONFIG;
+      process.chdir(repoRoot);
+
+      expect(fs.realpathSync(resolveSourceConfigPath({}))).toBe(fs.realpathSync(localConfigPath));
+    } finally {
+      process.chdir(originalCwd);
+      if (originalPaperclipConfig === undefined) {
+        delete process.env.PAPERCLIP_CONFIG;
+      } else {
+        process.env.PAPERCLIP_CONFIG = originalPaperclipConfig;
+      }
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves the source config path across worktree:make cwd changes", () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-worktree-source-override-"));
+    const sourceConfigPath = path.join(tempRoot, "source", "config.json");
+    const targetRoot = path.join(tempRoot, "target");
+    const originalCwd = process.cwd();
+    const originalPaperclipConfig = process.env.PAPERCLIP_CONFIG;
+
+    try {
+      fs.mkdirSync(path.dirname(sourceConfigPath), { recursive: true });
+      fs.mkdirSync(targetRoot, { recursive: true });
+      fs.writeFileSync(sourceConfigPath, JSON.stringify(buildSourceConfig()), "utf8");
+      delete process.env.PAPERCLIP_CONFIG;
+      process.chdir(targetRoot);
+
+      expect(resolveSourceConfigPath({ sourceConfigPathOverride: sourceConfigPath })).toBe(
+        path.resolve(sourceConfigPath),
+      );
+    } finally {
+      process.chdir(originalCwd);
+      if (originalPaperclipConfig === undefined) {
+        delete process.env.PAPERCLIP_CONFIG;
+      } else {
+        process.env.PAPERCLIP_CONFIG = originalPaperclipConfig;
+      }
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+>>>>>>> upstream/master
   it("rebinds same-repo workspace paths onto the current worktree root", () => {
     expect(
       rebindWorkspaceCwd({
@@ -293,7 +479,11 @@ describe("worktree helpers", () => {
     const fakeHome = path.join(tempRoot, "home");
     const worktreePath = path.join(fakeHome, "paperclip-make-test");
     const originalCwd = process.cwd();
+<<<<<<< HEAD
     const originalHome = process.env.HOME;
+=======
+    const homedirSpy = vi.spyOn(os, "homedir").mockReturnValue(fakeHome);
+>>>>>>> upstream/master
 
     try {
       fs.mkdirSync(repoRoot, { recursive: true });
@@ -305,7 +495,10 @@ describe("worktree helpers", () => {
       execFileSync("git", ["add", "README.md"], { cwd: repoRoot, stdio: "ignore" });
       execFileSync("git", ["commit", "-m", "Initial commit"], { cwd: repoRoot, stdio: "ignore" });
 
+<<<<<<< HEAD
       process.env.HOME = fakeHome;
+=======
+>>>>>>> upstream/master
       process.chdir(repoRoot);
 
       await worktreeMakeCommand("paperclip-make-test", {
@@ -318,6 +511,7 @@ describe("worktree helpers", () => {
       expect(fs.existsSync(path.join(worktreePath, ".paperclip", ".env"))).toBe(true);
     } finally {
       process.chdir(originalCwd);
+<<<<<<< HEAD
       if (originalHome === undefined) {
         delete process.env.HOME;
       } else {
@@ -326,4 +520,10 @@ describe("worktree helpers", () => {
       fs.rmSync(tempRoot, { recursive: true, force: true });
     }
   });
+=======
+      homedirSpy.mockRestore();
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+  }, 20_000);
+>>>>>>> upstream/master
 });
