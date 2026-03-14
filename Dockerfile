@@ -36,10 +36,19 @@ COPY packages/adapter-utils/package.json packages/adapter-utils/
 COPY packages/adapters/claude-local/package.json packages/adapters/claude-local/
 COPY packages/adapters/codex-local/package.json packages/adapters/codex-local/
 COPY packages/adapters/cursor-local/package.json packages/adapters/cursor-local/
+<<<<<<< HEAD
 COPY packages/adapters/openclaw-gateway/package.json packages/adapters/openclaw-gateway/
 COPY packages/adapters/opencode-local/package.json packages/adapters/opencode-local/
 COPY packages/adapters/pi-local/package.json packages/adapters/pi-local/
 RUN pnpm install --no-frozen-lockfile
+=======
+COPY packages/adapters/gemini-local/package.json packages/adapters/gemini-local/
+COPY packages/adapters/openclaw-gateway/package.json packages/adapters/openclaw-gateway/
+COPY packages/adapters/opencode-local/package.json packages/adapters/opencode-local/
+COPY packages/adapters/pi-local/package.json packages/adapters/pi-local/
+
+RUN pnpm install --frozen-lockfile
+>>>>>>> upstream/master
 
 FROM base AS build
 WORKDIR /app
@@ -56,6 +65,7 @@ COPY --chown=node:node --from=build /app /app
 RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/codex@latest opencode-ai \
   && mkdir -p /paperclip \
   && chown node:node /paperclip
+<<<<<<< HEAD
 
 # Install Playwright MCP for agent browser automation.
 # Playwright downloads and manages its own pinned Chromium — no system browser needed.
@@ -112,6 +122,8 @@ RUN curl -fsSL "https://mise.jdx.dev/mise-latest-linux-${TARGETARCH}" \
 # Copy entrypoint script that injects credentials before starting the server
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
+=======
+>>>>>>> upstream/master
 
 ENV NODE_ENV=production \
   HOME=/paperclip \
@@ -135,4 +147,9 @@ USER paperclip
 VOLUME ["/paperclip"]
 EXPOSE 3100
 
+<<<<<<< HEAD
 ENTRYPOINT ["/app/entrypoint.sh"]
+=======
+USER node
+CMD ["node", "--import", "./server/node_modules/tsx/dist/loader.mjs", "server/dist/index.js"]
+>>>>>>> upstream/master

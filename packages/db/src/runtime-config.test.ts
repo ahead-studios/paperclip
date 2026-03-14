@@ -46,6 +46,10 @@ describe("resolveDatabaseTarget", () => {
     const projectDir = path.join(tempDir, "repo");
     fs.mkdirSync(projectDir, { recursive: true });
     process.chdir(projectDir);
+<<<<<<< HEAD
+=======
+    delete process.env.PAPERCLIP_CONFIG;
+>>>>>>> upstream/master
     writeJson(path.join(projectDir, ".paperclip", "config.json"), {
       database: { mode: "embedded-postgres", embeddedPostgresPort: 54329 },
     });

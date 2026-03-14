@@ -53,6 +53,7 @@ type EmbeddedPostgresCtor = new (opts: {
   password: string;
   port: number;
   persistent: boolean;
+  initdbFlags?: string[];
   onLog?: (message: unknown) => void;
   onError?: (message: unknown) => void;
 }) => EmbeddedPostgresInstance;
@@ -334,6 +335,10 @@ export async function startServer(): Promise<StartedServer> {
         password: "paperclip",
         port,
         persistent: true,
+<<<<<<< HEAD
+=======
+        initdbFlags: ["--encoding=UTF8", "--locale=C"],
+>>>>>>> upstream/master
         onLog: appendEmbeddedPostgresLog,
         onError: appendEmbeddedPostgresLog,
       });
@@ -389,6 +394,10 @@ export async function startServer(): Promise<StartedServer> {
         "Use authenticated mode for non-loopback deployments.",
     );
   }
+<<<<<<< HEAD
+=======
+  
+>>>>>>> upstream/master
   if (config.deploymentMode === "local_trusted" && config.deploymentExposure !== "private") {
     throw new Error("local_trusted mode only supports private exposure");
   }
@@ -472,7 +481,10 @@ export async function startServer(): Promise<StartedServer> {
     bindHost: config.host,
     authReady,
     companyDeletionEnabled: config.companyDeletionEnabled,
+<<<<<<< HEAD
     entraEnabled: !!(config.entraClientId && config.entraClientSecret),
+=======
+>>>>>>> upstream/master
     betterAuthHandler,
     resolveSession,
   });
@@ -512,11 +524,22 @@ export async function startServer(): Promise<StartedServer> {
   if (config.heartbeatSchedulerEnabled) {
     const heartbeat = heartbeatService(db as any);
   
+<<<<<<< HEAD
     // Reap orphaned runs at startup (no threshold -- runningProcesses is empty)
     void heartbeat.reapOrphanedRuns().catch((err) => {
       logger.error({ err }, "startup reap of orphaned heartbeat runs failed");
     });
 
+=======
+    // Reap orphaned running runs at startup while in-memory execution state is empty,
+    // then resume any persisted queued runs that were waiting on the previous process.
+    void heartbeat
+      .reapOrphanedRuns()
+      .then(() => heartbeat.resumeQueuedRuns())
+      .catch((err) => {
+        logger.error({ err }, "startup heartbeat recovery failed");
+      });
+>>>>>>> upstream/master
     setInterval(() => {
       void heartbeat
         .tickTimers(new Date())
@@ -529,11 +552,21 @@ export async function startServer(): Promise<StartedServer> {
           logger.error({ err }, "heartbeat timer tick failed");
         });
   
+<<<<<<< HEAD
       // Periodically reap orphaned runs (5-min staleness threshold)
       void heartbeat
         .reapOrphanedRuns({ staleThresholdMs: 5 * 60 * 1000 })
         .catch((err) => {
           logger.error({ err }, "periodic reap of orphaned heartbeat runs failed");
+=======
+      // Periodically reap orphaned runs (5-min staleness threshold) and make sure
+      // persisted queued work is still being driven forward.
+      void heartbeat
+        .reapOrphanedRuns({ staleThresholdMs: 5 * 60 * 1000 })
+        .then(() => heartbeat.resumeQueuedRuns())
+        .catch((err) => {
+          logger.error({ err }, "periodic heartbeat recovery failed");
+>>>>>>> upstream/master
         });
     }, config.heartbeatSchedulerIntervalMs);
   }
